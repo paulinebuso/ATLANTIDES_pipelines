@@ -7,6 +7,7 @@
  
 #Phasing is necessary for haplotypes differenciation based methods. Here we are using BEAGLE 4.1  that can use genotype likelihood into account. A faster version exists but not take the GL into account.
 #Genotype likelihood is important because we are using whole genome sequencing data. 
+#The input data need to be "clean", filtered in a previous step. (See my Github pipeline : Soft filtering).
 #Here the example of Farmed european popultion. The input and output folder need to be adapted depending on the dataset you want to phase. In my project, I phased the 4 populations independantly.
 
 #Input folder
