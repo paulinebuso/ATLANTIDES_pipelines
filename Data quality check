@@ -1,0 +1,39 @@
+#!/bin/bash
+#SBATCH --ntasks=1         # 1 core(CPU)
+#SBATCH --nodes=1
+#SBATCH --job-name=vcftools.job
+#SBATCH --mem=8G
+
+#That pipeline was created in order to get statistics of data quality. 
+#Here the example with the farmed european population. The commands do not change. Only the file pathway (FULL_VCF variable) must be adapted to the data you want to load.
+
+#Load the tool
+module load VCFtools/0.1.16-GCC-9.3.0
+
+#Data pathway/directory 
+FULL_VCF=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_Europe_filtered.recode.vcf.gz
+
+#Output pathway
+OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/SNP_quality/farmed_euro/farmed_euro_quality
+
+# allele frequency distribution
+vcftools --gzvcf $FULL_VCF --min-alleles 2 --max-alleles 2 --freq2 --out $OUT
+
+# mean depth per site
+vcftools --gzvcf $FULL_VCF --min-alleles 2 --max-alleles 2  --site-mean-depth --out $OUT
+
+# site quality
+vcftools --gzvcf $FULL_VCF --min-alleles 2 --max-alleles 2 --site-quality --out $OUT
+
+# missing data per site
+vcftools --gzvcf $FULL_VCF --min-alleles 2 --max-alleles 2 --missing-site --out $OUT
+
+#SNP density
+#all
+vcftools --gzvcf $FULL_VCF --min-alleles 2 --max-alleles 2 --SNPdensity 100000 --out $OUT
+
+#maf 0.01
+vcftools --gzvcf $FULL_VCF --min-alleles 2 --max-alleles 2 --maf 0.01 --SNPdensity 100000 --out ${OUT}_maf0.01
+
+#singletons
+vcftools --gzvcf $FULL_VCF --min-alleles 2 --max-alleles 2 --singletons --out $OUT
