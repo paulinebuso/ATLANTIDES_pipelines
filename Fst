@@ -1,0 +1,53 @@
+#!/bin/bash
+#SBATCH --ntasks=1         # 1 core(CPU)
+#SBATCH --nodes=1
+#SBATCH --job-name=Fst_stats
+#SBATCH --mem=8G
+
+###WARNING###
+#Need a hard filtering for FST calculation (if not did before) = filtering from GATK pipeline + keep only the variants that have the "PASS" filter ta in INFO colun in the vcf file.
+
+#Inputs files :
+VCF1=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_Europe_filtered.recode.vcf.gz
+VCF2=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_Europe_filtered.recode.vcf.gz
+VCF3=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_American_filtered.recode.vcf.gz
+VCF4=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_American_filtered.recode.vcf.gz
+
+#Output folder : 
+OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/Fst/celian_files
+
+#Download the modules 
+module load BCFtools 
+module load SAMtools
+module load tabixpp/1.1.0-GCC-10.2.0
+module load VCFtools
+
+#Fst calculuation : https://vcftools.github.io/documentation.html
+#need text files that contain lists of individuals (one per line) that are members of each population. + a vcf file as input for fst calculation with the two pop together
+#The function will work with multiple populations if multiple --weir-fst-pop arguments are used. 
+#The following example shows how to calculate a per-site Fst calculation with two populations. 
+#Other arguments can be used in conjunction with this function, such as --fst-window-size and --fst-window-step. Here we used --fst-window-size in order to calculate fst by non-overlapping windows. 
+#If we used the basic command, we have too much points on the plot
+
+###Wild Norway - Farmed Norway
+#Create the input
+bcftools merge $VCF1 $VCF2 -0 --missing-to-ref > ${OUT}/Fst_dataset_Euro.vcf #merge the two vcf files to create our input #0--missing-to-ref is useful to avoid that if a genotype is missing in one population but not in the other for the same variant, it sets 0/0 as reference. 
+bgzip ${OUT}/Fst_dataset_Euro.vcf #zip the input
+tabix -p vcf ${OUT}/Fst_dataset_Euro.vcf.gz #index the input 
+
+#create the population files
+bcftools query -l $VCF1 > ${OUT}/farmed_euro_samples.txt #extract the samples list from the vcf file 
+bcftools query -l $VCF2 > ${OUT}/wild_euro_samples.txt
+
+#Fst command 
+vcftools --gzvcf ${OUT}/Fst_dataset_Euro.vcf.gz --weir-fst-pop ${OUT}/farmed_euro_samples.txt --weir-fst-pop ${OUT}/wild_euro_samples.txt --fst-window-size 5000 --out ${OUT}/Fst_stats_Euro_window5000 #fst-command
+#here we call the fst input (vcf file) containing the two pop + all the genotypes.
+#Then, we dissociate the two populations by calling the sample files we have created.
+
+###Wild NA - Farmed NA
+bcftools merge $VCF3 $VCF4 -0 --missing-to-ref > Fst_dataset_American.vcf #merge the two vcf files
+bgzip Fst_dataset_American.vcf
+tabix -p vcf Fst_dataset_American.vcf.gz
+bcftools query -l $VCF3 > ${OUT}/farmed_american_samples.txt
+bcftools query -l $VCF4 > ${OUT}/wild_american_samples.txt
+vcftools --gzvcf Fst_dataset_American.vcf.gz --weir-fst-pop ${OUT}/farmed_american_samples.txt --weir-fst-pop ${OUT}/wild_american_samples.txt --fst-window-size 5000 --out ${OUT}/Fst_stats_American #fst-command
