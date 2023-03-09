@@ -27,8 +27,12 @@ OUT2=/net/fs-2/scale/OrionStore/Scratch/pabu/PCA_admixture/PCA/celian_files
 bcftools merge $VCF1 $VCF2 $VCF3 $VCF4 -0 --missing-to-ref | bgzip > ${OUT1}/4pops_celian_merged.vcf.gz
 tabix -p vcf ${OUT1}/4pops_celian_merged.vcf.gz #index
 
+#add variantis IDs
+bcftools annotate --set-id '%CHROM\_%POS\_%REF\_%ALT' -c ID ${OUT1}/4pops_celian_merged.vcf.gz | bgzip > ${{OUT1}/4pops_celian_merged_ids.vcf.gz
+tabix -p vcf ${OUT1}/4pops_celian_merged_ids.vcf.gz
+
 #Full input
-FULL_VCF=/net/fs-2/scale/OrionStore/Scratch/pabu/Pass_filtered_datasets/4pops_celian_merged.vcf.gz
+FULL_VCF=/net/fs-2/scale/OrionStore/Scratch/pabu/Pass_filtered_datasets/4pops_celian_merged_ids.vcf.gz
 
 #Structure analysis need Linkage Desequilibrum prunning + MAF cutting off + filtering of missing genotypes : to keep only neutral markers.
 plink --vcf $FULL_VCF --geno 0.1 --maf 0.05 --indep-pairwise 50 10 0.1 --out ${OUT2}/PCA_filtering --recode vcf bgz --double-id --aec --threads 8 --dog 
