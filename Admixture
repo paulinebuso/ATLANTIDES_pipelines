@@ -6,27 +6,61 @@
 #SBATCH --output=admixture.%A_%a.txt 
 #SBATCH --constraint=avx2
 
-
-VCF=/net/fs-2/scale/OrionStore/Scratch/pabu/Pass_filtered_datasets/4pops_celian_merged_ids.vcf.gz
-OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/PCA_admixture/admixture/celian_files
-
-module load PLINK/1.9b_6.17-x86_64
+#Load the required tools
 module load VCFtools
+module load BCFtools
 module load tabixpp/1.1.0-GCC-10.2.0
 module load SAMtools
+module load PLINK/1.9b_6.17-x86_64 #plink 1.9 does not keep the phased data. plink 2.0 concerve phased data. here we're usiing unphased data do 1.9 is enough.
 
-zcat $VCF |sed 's/ssa0//g' |sed 's/ssa//g'| pigz -p 4 > ${OUT}/4_pops_renamed.vcf.gz
+#Inputs directories
+VCF1=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_Europe_filtered.recode.vcf.gz
+VCF2=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_Europe_filtered.recode.vcf.gz
+VCF3=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_American_filtered.recode.vcf.gz
+VCF4=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_American_filtered.recode.vcf.gz
 
-plink --vcf ${OUT}/4_pops_renamed.vcf.gz --geno 0.1 --maf 0.05 --indep-pairwise 50 10 0.1 --out ${OUT}/filtering --recode vcf bgz --double-id --aec --threads 8 --dog
-tabix -p vcf ${OUT}/filtering.vcf.gz
-plink --vcf ${OUT}/filtering.vcf.gz --exclude ${OUT}/filtering.prune.out --out ${OUT}/4_pops_merged_filtered_admixture --recode vcf bgz --double-id --aec --threads 8 --dog
-tabix -p vcf ${OUT}/4_pops_merged_filtered_admixture.vcf.gz
+#Outputs directories
+OUT1=/net/fs-2/scale/OrionStore/Scratch/pabu/Pass_filtered_datasets
+OUT2=/net/fs-2/scale/OrionStore/Scratch/pabu/PCA_admixture/admixture/celian_files
 
-plink --vcf ${OUT}/4_pops_merged_filtered_admixture.vcf.gz --make-bed --out ${OUT}/input_admixture --aec --dog --threads 8 --double-id
+#Create a vcf file with the 4 populations together 
+bcftools merge $VCF1 $VCF2 $VCF3 $VCF4 -0 --missing-to-ref | bgzip > ${OUT1}/4pops_celian_merged.vcf.gz
+tabix -p vcf ${OUT1}/4pops_celian_merged.vcf.gz #index
 
-#plink --bfile ${OUT}/filtering --exclude ${OUT}/filtering.prune.out --make-bed --out ${OUT}/input_admixture --aec --dog --threads 8
+#add variants IDs
+bcftools annotate --set-id '%CHROM\_%POS\_%REF\_%ALT' -c ID ${OUT1}/4pops_celian_merged.vcf.gz | bgzip > ${{OUT1}/4pops_celian_merged_ids.vcf.gz
+tabix -p vcf ${OUT1}/4pops_celian_merged_ids.vcf.gz #index
 
-#run admixture
+#Full input
+FULL_VCF=/net/fs-2/scale/OrionStore/Scratch/pabu/Pass_filtered_datasets/4pops_celian_merged_ids.vcf.gz
+
+#remove "ssa" and "ssa0" in the Chromosome name column because ADMIXTURE does not recognize the chromosomes if it is not numbers.
+zcat $FULL_VCF |sed 's/ssa0//g' |sed 's/ssa//g'| pigz -p 4 > ${OUT2}/4_pops_renamed.vcf.gz
+
+#Like the PCA, admixture need LD prunning, MAF cut off and missing genotype filtering in order to keep only  neutral markers.
+plink --vcf ${OUT2}/4_pops_renamed.vcf.gz --geno 0.1 --maf 0.05 --indep-pairwise 50 10 0.1 --out ${OUT2}/filtering --recode vcf bgz --double-id --aec --threads 8 --dog
+tabix -p vcf ${OUT2}/filtering.vcf.gz #index
+
+#Like the PCA, the command above filter automatically MAF and missingness in the output. 
+#But for LD prunning, it creates 2 outputs with the variants in linkage desequilibrum and the "good" variants to keep in two independant lists. We need to exclude the "bad" variants from the filtering file created above.
+plink --vcf ${OUT2}/filtering.vcf.gz --exclude ${OUT2}/filtering.prune.out --out ${OUT2}/4_pops_merged_filtered_admixture --recode vcf bgz --double-id --aec --threads 8 --dog
+tabix -p vcf ${OUT2}/4_pops_merged_filtered_admixture.vcf.gz #index
+
+#Convert the vcf file in .bed .bim .fam .log file for admixture input.
+plink --vcf ${OUT2}/4_pops_merged_filtered_admixture.vcf.gz --make-bed --out ${OUT}/input_admixture --aec --dog --threads 8 --double-id
+
+#Run admixture
+#Here we need to give the K values we want to test (here between 1 and 10) = genetic components = degree of mixity
+#The K value with the LOWEST cross validation error will be retain for further analyses. 
+#The command line creates 3 outputs : (1) .log with the cross validation errors, (2) .P, (3) .Q (the most important as it contains the admixtures calculations)
 for K in {1..10} ; do
 singularity exec /cvmfs/singularity.galaxyproject.org/all/admixture:1.3.0--0 admixture --cv=10 ${OUT}/input_admixture.bed $K > ${OUT}/admixture_output.$K.log
 done
+
+#Extract the CV error in a table for R plotting
+grep -h CV admixture_output.*.log > cross_validation_errors.txt
+
+#Extract the sample list for R plotting. We need the EXACT same order of samples and the admixture output lines (that follows the input we gave) when we plot the results on R.
+cut -f 1 input_admixture.tfam > id_admixture.txt
+
+#See the R script for plotting the results
