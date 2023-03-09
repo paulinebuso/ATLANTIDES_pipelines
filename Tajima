@@ -32,7 +32,7 @@ vcftools --gzvcf $VCF2 --out ${OUT}/tajima_farmed_american --TajimaD 20000
 vcftools --gzvcf $VCF2 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/farmed_american_nucl_div_SNPs
 
 vcftools --gzvcf $VCF3 --out ${OUT}/tajima_wild_euro --TajimaD 20000
-vcftools --gzvcf $VCF3 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/wild_euro_nucl_div_SNPs
+vcftools --gzvcf $VCF3 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/wild_euro_nucl_div_SNPs 
 
 vcftools --gzvcf $VCF4 --out ${OUT}/tajima_wild_american --TajimaD 20000
 vcftools --gzvcf $VCF4 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/wild_american_nucl_div_SNPs
