@@ -1,0 +1,35 @@
+#!/bin/bash
+#SBATCH --job-name=bam_mapping  # sensible name for the job
+#SBATCH --output=gatk.%A_%a.txt
+#SBATCH --mem=12G 
+#SBATCH --constraint=avx2
+#SBATCH --ntasks=12               # 1 core(CPU)                # Default memory per CPU is 3GB
+#SBATCH --mail-user=marie.saitou@nmbu.no # Email me when job is done.
+#SBATCH --mail-type=END
+
+# sbatch --array=3-9  gatk_step01_farmedAmerica.slurm # is the executing command.
+# --array=3-9 specifies numbers between 3 to 9 
+# In SRR992570${SLURM_ARRAY_TASK_ID}_1.fastq.gz, Slurm can set SRR9925703_1.fastq.gz to SRR9925709_1.fastq.gz and can work with multiple samples in parallel
+# in your case, the sample name is ERR6745724_1.fastq.gz ~. You may want to convert the file names into 2014GNOS1BN1169D03... after everything is done. (Maybe after making the VCF tile)
+
+## Trimming
+# singularity exec /cvmfs/singularity.galaxyproject.org/f/a/fastp:0.20.1--h8b12597_0 fastp --in1 SRR992570${SLURM_ARRAY_TASK_ID}_1.fastq.gz  --in2 SRR992570${SLURM_ARRAY_TASK_ID}_2.fastq.gz --out1 downstream/trimmed_SRR992570${SLURM_ARRAY_TASK_ID}_1.fq.gz --out2 downstream/trimmed_SRR992570${SLURM_ARRAY_TASK_ID}_2.fq.gz 
+
+## Alignment
+module load SAMtools
+
+#https://www.biostars.org/p/300534/
+#############
+
+# https://blog.dnanexus.com/2020-03-10-bwa-mem2-review/
+# https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bwa-aligner.html
+
+singularity exec /cvmfs/singularity.galaxyproject.org/all/bwa-mem2:2.2.1--he513fc3_0 bwa-mem2 mem -t $SLURM_JOB_CPUS_PER_NODE /net/fs-2/scale/OrionStore/Projects/MSLab/Shared_Data/ssav3.1_ref/Simon_Final2021_CHR.fasta downstream/trimmed_SRR992570${SLURM_ARRAY_TASK_ID}_1.fq.gz downstream/trimmed_SRR992570${SLURM_ARRAY_TASK_ID}_2.fq.gz | \
+singularity exec /cvmfs/singularity.galaxyproject.org/all/samblaster:0.1.26--h7d875b9_1 samblaster | \
+samtools fixmate -O sam - - | \
+samtools sort -O bam - | \
+samtools view -T /net/fs-2/scale/OrionStore/Projects/MSLab/Shared_Data/ssav3.1_ref/Simon_Final2021_CHR.fasta  -b -o SRR992570${SLURM_ARRAY_TASK_ID}.bam
+samtools index SRR992570${SLURM_ARRAY_TASK_ID}.bam
+
+
+
