@@ -14,7 +14,7 @@ WD=/net/fs-2/scale/OrionStore/Projects/MSLab/Pauline #folder with the raw data (
 OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/Raw_datasets
 
 #Take out only the SNPs from files with SNP + indels.
-#Farmed-European
+#Farmed-European samples
 bcftools view -M 2 -m2 -v snps /mnt/project/MSLab/Shared_Data/Synchrosmolt_parents/renamed_MOWI_wgs_parents.vcf.gz -Oz -o ${OUT}/Farmed_european.vcf.gz --threads 10
 tabix -p vcf ${OUT}/Farmed_european.vcf.gz
 
@@ -26,6 +26,6 @@ tabix -p vcf ${OUT}/Wild_european.vcf.gz
 bcftools view -M 2 -m2 -v snps ${WD}/Wild_NAmerica.vcf.gz -Oz -o ${OUT}/Wild_NAmerica.vcf.gz --threads 16
 tabix -p vcf ${OUT}/Wild_NAmerica.vcf.gz
 
-#Farmed_American_ssa07
+#Farmed_American samples
 bcftools view -M 2 -m2 -v snps ${WD}/Farmed_NAmerica.vcf.gz -Oz -o ${OUT}/Farmed_NAmerica.vcf.gz --threads 16
 tabix -p vcf ${OUT}/Farmed_NAmerica.vcf.gz
