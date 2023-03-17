@@ -9,6 +9,8 @@ library(tidyverse)
 library(ggplot2)
 library(dplyr)
 
+#help : https://speciationgenomics.github.io/filtering_vcfs/
+
 ##Genotype quality
 #read data
 var_qual <- read_delim("wild_european.lqual", delim = "\t", col_names = c("chr", "pos", "qual"), skip = 1)
