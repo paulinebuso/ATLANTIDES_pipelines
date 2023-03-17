@@ -42,6 +42,7 @@ tajima_euro <- tajima_euro %>%
   inner_join(data_cum, by = "CHROM") %>% 
   mutate(bp_cum = BIN_START + bp_add)
 
+#Get the center of chromosomes
 axis_set <- tajima_euro %>% 
   group_by(CHROM) %>% 
   summarize(center = mean(bp_cum))
