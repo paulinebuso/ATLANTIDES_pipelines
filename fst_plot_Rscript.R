@@ -3,14 +3,14 @@ library(ggplot2)
 library(tidyverse)
 library(dplyr)
 
-###FST Wild Norway - Farmed NORWAY
+###FST Wild - Farmed EUROPE
+#read the output from the bash script
 
-#fst_Euro <- read.table("Fst_stats_Euro.weir.fst", header=TRUE) %>% as_tibble %>% rename_all(~c("CHROM","POS","FST"))
+fst_Euro_window <- read.table("~/ATLANTIDES/Fst/Fst_stats_Euro_window5000.windowed.weir.fst", header=TRUE) %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","BIN_END","N_VARIANTS","WEIGHTED_FST","MEAN_FST")) #%>% as_tibble %>% rename_all that command from dplyr allows to rename the columns
 
-fst_Euro_window <- read.table("~/ATLANTIDES/Fst/Fst_stats_Euro_window5000.windowed.weir.fst", header=TRUE) %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","BIN_END","N_VARIANTS","WEIGHTED_FST","MEAN_FST"))
-
-#data preparation pour plot
-
+#data preparation
+#help from the forum : https://danielroelfs.com/blog/how-i-create-manhattan-plots-using-ggplot/
+#add a column with cumulative position : 
 data_cum <- fst_Euro_window %>% 
   group_by(CHROM) %>% 
   summarise(max_bp = max(BIN_START)) %>% 
@@ -21,13 +21,16 @@ fst_Euro_window <- fst_Euro_window %>%
   inner_join(data_cum, by = "CHROM") %>% 
   mutate(bp_cum = BIN_START + bp_add)
 
+#Get the center position of each chromosome
 axis_set <- fst_Euro_window %>% 
   group_by(CHROM) %>% 
   summarize(center = mean(bp_cum))
 
+#Calcul of the quantiles for significant lines
 quantile(fst_Euro_window$WEIGHTED_FST, c(.01, .99))
 quantile_fst_euro=0.286489820
 
+#plot using the cumulative position and center for chromosomes
 fst_plot <- ggplot(fst_Euro_window, aes(x = bp_cum, y = WEIGHTED_FST,color = as.factor(CHROM))) +
   geom_point(alpha = 0.75,size=0.80) + ylim(c(0,1)) + 
   scale_x_continuous(label =axis_set$CHROM, breaks = axis_set$center) +
