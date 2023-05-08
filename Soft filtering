@@ -27,6 +27,10 @@ module load BCFtools
 bcftools merge /mnt/SCRATCH/pabu/Raw_datasets/Farmed_european_ids.vcf.gz /mnt/SCRATCH/pabu/Raw_datasets/Wild_european_ids.vcf.gz /mnt/SCRATCH/pabu/Raw_datasets/Farmed_NAmerica_ids.vcf.gz /mnt/SCRATCH/pabu/Raw_datasets/Wild_NAmerica_ids.vcf.gz | bgzip > /mnt/SCRATCH/pabu/Soft_filtering/4pops_merged.vcf.gz
 tabix -p vcf /mnt/SCRATCH/pabu/Soft_filtering/4pops_merged.vcf.gz
 
+#add variants ids : facultative
+#bcftools annotate --set-id '%CHROM\_%POS\_%REF\_%ALT' -c ID /mnt/SCRATCH/pabu/Pass_filtered_datasets/4pops_celian_merged.vcf.gz | bgzip > /mnt/SCRATCH/pabu/Pass_filtered_datasets/4pops_celian_merged_ids.vcf.gz
+#tabix -p vcf /mnt/SCRATCH/pabu/Pass_filtered_datasets/4pops_merged_ids.vcf.gz
+
 #Pass filtering : to keep ony the variant that PASS the GATK filter tag from mapping and genotype calling pipeline
 
 WD=/mnt/SCRATCH/pabu/Soft_filtering/4pops_merged.vcf.gz
