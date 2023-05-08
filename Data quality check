@@ -11,10 +11,10 @@
 module load VCFtools/0.1.16-GCC-9.3.0
 
 #Data pathway/directory 
-FULL_VCF=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_Europe_filtered.recode.vcf.gz
+FULL_VCF=put the pathway of the file
 
 #Output pathway
-OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/SNP_quality/farmed_euro/farmed_euro_quality
+OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/SNP_quality
 
 # allele frequency distribution
 vcftools --gzvcf $FULL_VCF --min-alleles 2 --max-alleles 2 --freq2 --out $OUT
