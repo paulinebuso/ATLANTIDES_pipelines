@@ -1,0 +1,97 @@
+## GATK version="4.2.0.0"
+## I used  https://gatk.broadinstitute.org/hc/en-us/articles/360035535932-Germline-short-variant-discovery-SNPs-Indels-
+ 
+
+REF=/net/10.222.0.31/Transpose/Software/fasta/Simon_Final2021_CHR_selected.fa
+## For reference genome, we used chromosome only (contigs were removed) of ssa_version_3.1, which can be retrieved here
+## https://rapid.ensembl.org/Salmo_salar_GCA_905237065.2/Info/Index
+
+## Trimming
+file=$(awk 'NR=='$SLURM_ARRAY_TASK_ID'' sampleagain1.txt | awk '{print $1}')
+out=$(awk 'NR=='$SLURM_ARRAY_TASK_ID'' sampleagain2.txt | awk '{print $1}')
+echo Line number $SLURM_ARRAY_TASK_ID contains the sample ${file}.
+singularity exec /cvmfs/singularity.galaxyproject.org/f/a/fastp:0.20.1--h8b12597_0 fastp --in1 /net/fs-1/SandveLab/rawdata/2021_Synchrosmolt/Clean/${file}1.fq.gz  --in2 /net/fs-1/SandveLab/rawdata/2021_Synchrosmolt/Clean/${file}2.fq.gz --out1 /net/fs-1/SandveLab/results/BGIseq/fastp/trimmed_${out}1.fq.gz --out2 /net/fs-1/SandveLab/results/BGIseq/fastp/trimmed_${out}2.fq.gz  &> light.log
+
+## QC
+singularity exec /cvmfs/singularity.galaxyproject.org/f/a/fastqc:0.11.9--0 fastqc -t 50 /net/fs-1/SandveLab/results/BGIseq/fastp3/*.fq.gz --outdir=/net/fs-1/SandveLab/results/BGIseq/fastp3/fastQC3
+cd /net/fs-1/SandveLab/results/BGIseq/fastp3/fastQC3
+singularity exec /cvmfs/singularity.galaxyproject.org/all/multiqc:1.9--pyh9f0ad1d_0  multiqc .
+
+
+## Alignment
+module load SAMtools
+REF=/net/fs-1/Transpose/Software/fasta/Simon_Final2021_CHR_selected.fa
+INDIVI=$(awk 'NR=='$SLURM_ARRAY_TASK_ID'' indivi.txt | awk '{print $1}')
+threads=$SLURM_JOB_CPUS_PER_NODE
+#INDIVI=$(awk 'NR=='1'' indivi.txt | awk '{print $1}')
+
+#https://www.biostars.org/p/300534/
+##############
+
+# https://blog.dnanexus.com/2020-03-10-bwa-mem2-review/
+# https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bwa-aligner.html
+singularity exec /cvmfs/singularity.galaxyproject.org/all/bwa-mem2:2.2.1--he513fc3_0 bwa-mem2 mem -t $threads /net/fs-1/SandveLab/results/BGIseq/bam/Simon_Final2021_CHR_selected.fa /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/merge/${INDIVI}_1.fq.gz /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/merge/${INDIVI}_2.fq.gz | \
+singularity exec /cvmfs/singularity.galaxyproject.org/all/samblaster:0.1.26--h7d875b9_1 samblaster | \
+samtools fixmate -O sam - - | \
+samtools sort -m 10G -@ 50 -O bam - | \
+samtools view -T /net/fs-1/SandveLab/results/BGIseq/bam/Simon_Final2021_CHR_selected.fa  -b -o ${INDIVI}.0525.bam
+
+
+## MarkDuplicates
+
+INDIVI=$(awk 'NR=='$SLURM_ARRAY_TASK_ID'' indivi.txt | awk '{print $1}')
+module load SAMtools
+#https://www.biostars.org/p/300534/
+##############
+singularity exec /cvmfs/singularity.galaxyproject.org/all/gatk4:4.2.0.0--0 gatk MarkDuplicates -I ${INDIVI}.0531.bam \
+                      -O /net/10.222.0.31/SandveLab/results/BGIseq/bam0531/${INDIVI}_markdup.bam \
+                      -M /net/10.222.0.31/SandveLab/results/BGIseq/bam0531/${INDIVI}_markdup_metrics.txt \
+                      --TMP_DIR /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/bam
+samtools index ${INDIVI}_markdup.bam
+rm rm ${INDIVI}.0531.bam
+
+## Add read group information
+
+#CPUs=$SLURM_CPUS_ON_NODE
+module load SAMtools
+INDIVI=$(awk 'NR=='$SLURM_ARRAY_TASK_ID'' /net/10.222.0.31/SandveLab/results/BGIseq/bam0531/indivi.txt | awk '{print $1}')
+singularity exec /cvmfs/singularity.galaxyproject.org/all/picard-slim:2.25.5--hdfd78af_0 picard AddOrReplaceReadGroups -I /net/10.222.0.31/SandveLab/results/BGIseq/bam0531/${INDIVI}_markdup.bam -O /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/bam/${INDIVI}_RG.bam  -RGID MOWI -RGLB MOWI -RGPL BGI -RGPU unit1 -RGSM ${INDIVI}
+samtools index /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/bam/${INDIVI}_RG.bam
+
+
+
+## Call variants per-sample
+# https://gatk.broadinstitute.org/hc/en-us/articles/360056969012-HaplotypeCaller
+# https://gatk.broadinstitute.org/hc/en-us/articles/360056970432-GenotypeGVCFs
+
+INDIVI=$(awk 'NR=='$SLURM_ARRAY_TASK_ID'' /net/10.222.0.31/SandveLab/results/BGIseq/bam0531/indivi.txt | awk '{print $1}')
+REF=/net/10.222.0.31/Transpose/Software/fasta/Simon_Final2021_CHR_selected.fa
+singularity exec /cvmfs/singularity.galaxyproject.org/all/gatk4:4.2.0.0--0 gatk HaplotypeCaller -R ${REF} -I /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/bam/${INDIVI}_RG.bam -O /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/vcf/${INDIVI}_g.vcf.gz -ERC GVCF --tmp-dir /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/tmp --sample-name ${INDIVI}
+
+
+## Consolidate GVCFs - merge chromosomes
+REF=/net/10.222.0.31/Transpose/Software/fasta/Simon_Final2021_CHR_selected.fa
+singularity exec /cvmfs/singularity.galaxyproject.org/all/gatk4:4.2.0.0--0 gatk --java-options "-Xmx4g -Xms4g" \
+      GenomicsDBImport -R ${REF}\
+      --genomicsdb-workspace-path BGIseq_data_620_ssa0${SLURM_ARRAY_TASK_ID}\
+      --sample-name-map indivi.sample_map \
+      --tmp-dir /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/tmp \
+      --reader-threads 10 -L ssa0${SLURM_ARRAY_TASK_ID}
+
+## Joint-Call Cohort
+## https://gatk.broadinstitute.org/hc/en-us/articles/360056970432-GenotypeGVCFs
+gatk --java-options "-Xmx4g" GenotypeGVCFs \
+  -R ${REF} \
+ -V gendb://BGIseq_data_620_ssa0${SLURM_ARRAY_TASK_ID} \
+  -O output.ssa0${SLURM_ARRAY_TASK_ID}.vcf.gz \
+  --tmp-dir /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/tmp
+
+
+## Filtering of the VCF
+REF=/net/10.222.0.31/Transpose/Software/fasta/Simon_Final2021_CHR_selected.fa
+singularity exec /cvmfs/singularity.galaxyproject.org/all/gatk4:4.2.0.0--0 gatk VariantFiltration -R ${REF} -V output.sa${SLURM_ARRAY_TASK_ID}.vcf.gz -O filtered.ssa${SLURM_ARRAY_TASK_ID}.vcf.gz \
+                           -filter "QD < 2.0" --filter-name "QD2"       \
+                           -filter "QUAL < 50.0" --filter-name "QUAL50" \
+                           -filter "SOR > 4.0" --filter-name "SOR4"     \
+                           -filter "FS > 60.0" --filter-name "FS60"     \
+                           -filter "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" --tmp-dir /net/cn-1/mnt/SCRATCH/2021_Synchrosmolt/tmp
