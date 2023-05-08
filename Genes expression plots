@@ -1,0 +1,244 @@
+
+library(tools)
+library(ggpubr)
+library(pheatmap)
+library(tidyverse)
+library(viridis)
+
+#set the lib-path and load the data I sent
+#setwd("set your working directory where all files are located")
+setwd("~/ATLANTIDES/gene_expression")
+load("salmon_ds.RDa")
+
+###ALL GENES AMERICAN
+#load your gene table, fix anything weird (i kicked out some weird lines at the end)
+genes.tab<-data.table::fread("genes_american2.tsv")
+genes.tab<-genes.tab %>% mutate(dict=ifelse(gene_id=="",paste0(gene_name),gene_id)) %>% mutate(dict=ifelse(is.na(gene_id),gene_name,dict))
+
+#load metadata
+kmeta<-data.table::fread("RNA_seq_metadata_all.txt",header=T) %>% select(c(1:15))
+
+#we know we want to check data from a study with multiple tissues so find the exact project and keep only that data
+kmeta %>% group_by(project) %>% summarize(length(unique(tissue_name)))
+mt.meta<-kmeta %>% filter(project=="SRP011583") %>% transmute(sample=technical_rep,tissue=tissue_name)
+
+#fix the column names on the expression data  table
+kdf.names<-basename(file_path_sans_ext(colnames(salmon_ds)))
+colnames(salmon_ds)<-kdf.names
+
+salmon_ds[1:5,1:5] #what it looks like
+
+#keep specific project samples
+mt.exp<-salmon_ds[colnames(salmon_ds) %in% mt.meta$sample]
+mt.exp[1:5,1:5]
+
+#keep only the genes you are interested in!
+mt.exp.genelist<-mt.exp[row.names(mt.exp) %in% genes.tab$gene_name,]
+
+mt.exp.genelist[1:5,1:5] #what it looks like
+
+#the gene expression is already normalized log2( expression + 1) so there should not be normalization issues
+#First glance of the expression heatmap of your selected genes
+pheatmap(mt.exp.genelist)
+
+#make the plot human readable
+fixed.mt.exr.table <- mt.exp.genelist %>% t() %>%  as.data.frame() %>% tibble::rownames_to_column(var="sample") %>%
+  inner_join(mt.meta,by="sample") %>%
+  select(-sample) %>%
+  tibble::column_to_rownames(var="tissue") #you have joinned the metadata and expression by the sample name and then used the name of tissue
+
+#rename the gene names of the expression table with the dictionary of human readable names
+colnames(fixed.mt.exr.table)<-genes.tab$dict[match(colnames(fixed.mt.exr.table),genes.tab$gene_name)]
+
+#plot heatmap
+pheatmap::pheatmap(t(fixed.mt.exr.table),color = viridis(100))
+ggtab<-fixed.mt.exr.table %>% tibble::rownames_to_column(var="tissue") %>%  pivot_longer(-tissue,names_to="gene",values_to = "exp")
+
+my_breaks <- c(0, 0.01, 0.1, 1, 10, 100,200)
+american_all <- ggplot(ggtab)+geom_tile(aes(tissue,gene,fill=exp)) +
+  scale_fill_viridis_c(breaks = my_breaks, labels = my_breaks,
+                       trans = scales::pseudo_log_trans(sigma = 0.001)) + labs(fill="log-fold expression", y="Genes",x="Tissues") + 
+  theme(axis.text.x = element_text(angle = 30, size=10)) + 
+  theme(axis.text.y = element_text(size=10)) +
+  theme(legend.key.size = unit(0.375, "cm")) +
+  theme(legend.title = element_text(size = 10)) 
+american_all
+
+ggsave("all_genes_american.png",width=10,height=10,dpi=300)
+dev.off()
+
+####ALL GENES EUROPE
+#load your gene table, fix anything weird (i kicked out some weird lines at the end)
+genes.tab<-data.table::fread("genes_europe2.tsv")
+genes.tab<-genes.tab %>% mutate(dict=ifelse(gene_id=="",paste0(gene_name),gene_id)) %>% mutate(dict=ifelse(is.na(gene_id),gene_name,dict))
+
+#load metadata
+kmeta<-data.table::fread("RNA_seq_metadata_all.txt",header=T) %>% select(c(1:15))
+
+#we know we want to check data from a study with multiple tissues so find the exact project and keep only that data
+kmeta %>% group_by(project) %>% summarize(length(unique(tissue_name)))
+mt.meta<-kmeta %>% filter(project=="SRP011583") %>% transmute(sample=technical_rep,tissue=tissue_name)
+
+#fix the column names on the expression data  table
+kdf.names<-basename(file_path_sans_ext(colnames(salmon_ds)))
+colnames(salmon_ds)<-kdf.names
+
+salmon_ds[1:5,1:5] #what it looks like
+
+#keep specific project samples
+mt.exp<-salmon_ds[colnames(salmon_ds) %in% mt.meta$sample]
+mt.exp[1:5,1:5]
+
+#keep only the genes you are interested in!
+mt.exp.genelist<-mt.exp[row.names(mt.exp) %in% genes.tab$gene_name,]
+
+mt.exp.genelist[1:5,1:5] #what it looks like
+
+#the gene expression is already normalized log2( expression + 1) so there should not be normalization issues
+#First glance of the expression heatmap of your selected genes
+pheatmap(mt.exp.genelist)
+
+#make the plot human readable
+fixed.mt.exr.table <- mt.exp.genelist %>% t() %>%  as.data.frame() %>% tibble::rownames_to_column(var="sample") %>%
+  inner_join(mt.meta,by="sample") %>%
+  select(-sample) %>%
+  tibble::column_to_rownames(var="tissue") #you have joinned the metadata and expression by the sample name and then used the name of tissue
+
+#rename the gene names of the expression table with the dictionary of human readable names
+colnames(fixed.mt.exr.table)<-genes.tab$dict[match(colnames(fixed.mt.exr.table),genes.tab$gene_name)]
+
+#plot heatmap
+pheatmap::pheatmap(t(fixed.mt.exr.table),color = viridis(100))
+ggtab<-fixed.mt.exr.table %>% tibble::rownames_to_column(var="tissue") %>%  pivot_longer(-tissue,names_to="gene",values_to = "exp")
+
+my_breaks <- c(0, 0.01, 0.1, 1, 10, 100,200)
+euro_all <- ggplot(ggtab)+geom_tile(aes(tissue,gene,fill=exp)) +
+  scale_fill_viridis_c(breaks = my_breaks, labels = my_breaks,
+                       trans = scales::pseudo_log_trans(sigma = 0.001)) + labs(fill="log-fold expression", y="Genes",x="Tissues") + 
+  theme(axis.text.x = element_text(angle = 30, size=10)) + 
+  theme(axis.text.y = element_text(size=10)) +
+  theme(legend.key.size = unit(0.375, "cm")) +
+  theme(legend.title = element_text(size = 10)) 
+euro_all
+
+ggsave("all_genes_euro.png",width=10,height=10,dpi=300)
+dev.off()
+
+####VEP coding variants on genes only
+
+#set the lib-path and load the data I sent
+#setwd("set your working directory where all files are located")
+setwd("~/ATLANTIDES/gene_expression")
+load("salmon_ds.RDa")
+
+#load your gene table, fix anything weird (i kicked out some weird lines at the end)
+genes.tab<-data.table::fread("VEP_genes_europe.tsv")
+genes.tab<-genes.tab %>% mutate(dict=ifelse(gene_id=="",paste0(gene_name),gene_id)) %>% mutate(dict=ifelse(is.na(gene_id),gene_name,dict))
+
+#load metadata
+kmeta<-data.table::fread("RNA_seq_metadata_all.txt",header=T) %>% select(c(1:15))
+
+#we know we want to check data from a study with multiple tissues so find the exact project and keep only that data
+kmeta %>% group_by(project) %>% summarize(length(unique(tissue_name)))
+mt.meta<-kmeta %>% filter(project=="SRP011583") %>% transmute(sample=technical_rep,tissue=tissue_name)
+
+#fix the column names on the expression data  table
+kdf.names<-basename(file_path_sans_ext(colnames(salmon_ds)))
+colnames(salmon_ds)<-kdf.names
+
+salmon_ds[1:5,1:5] #what it looks like
+
+#keep specific project samples
+mt.exp<-salmon_ds[colnames(salmon_ds) %in% mt.meta$sample]
+mt.exp[1:5,1:5]
+
+#keep only the genes you are interested in!
+mt.exp.genelist<-mt.exp[row.names(mt.exp) %in% genes.tab$gene_name,]
+
+mt.exp.genelist[1:5,1:5] #what it looks like
+
+#the gene expression is already normalized log2( expression + 1) so there should not be normalization issues
+#First glance of the expression heatmap of your selected genes
+pheatmap(mt.exp.genelist)
+
+#make the plot human readable
+fixed.mt.exr.table <- mt.exp.genelist %>% t() %>%  as.data.frame() %>% tibble::rownames_to_column(var="sample") %>%
+  inner_join(mt.meta,by="sample") %>%
+  select(-sample) %>%
+  tibble::column_to_rownames(var="tissue") #you have joinned the metadata and expression by the sample name and then used the name of tissue
+
+#rename the gene names of the expression table with the dictionary of human readable names
+colnames(fixed.mt.exr.table)<-genes.tab$dict[match(colnames(fixed.mt.exr.table),genes.tab$gene_name)]
+
+#plot heatmap
+pheatmap::pheatmap(t(fixed.mt.exr.table),color = viridis(100))
+ggtab<-fixed.mt.exr.table %>% tibble::rownames_to_column(var="tissue") %>%  pivot_longer(-tissue,names_to="gene",values_to = "exp")
+
+my_breaks <- c(0, 0.01, 0.1, 1, 10, 100,200)
+euro <- ggplot(ggtab)+geom_tile(aes(tissue,gene,fill=exp)) +
+  scale_fill_viridis_c(breaks = my_breaks, labels = my_breaks,
+                       trans = scales::pseudo_log_trans(sigma = 0.001)) + labs(fill="log-fold expression", y="Genes",x="Tissues") + 
+  theme(axis.text.x = element_text(angle = 30, size=7.5)) + 
+  theme(axis.text.y = element_text(size=7.5)) +
+  theme(legend.key.size = unit(0.375, "cm")) +
+  theme(legend.title = element_text(size = 10)) 
+euro
+ggsave("VEP_genes_europe.png",width=7,height=1.75,dpi=300)
+dev.off()
+
+#load your gene table, fix anything weird (i kicked out some weird lines at the end)
+genes.tab2<-data.table::fread("VEP_genes_american.tsv")
+genes.tab2<-genes.tab2 %>% mutate(dict=ifelse(gene_id=="",paste0(gene_name),gene_id)) %>% mutate(dict=ifelse(is.na(gene_id),gene_name,dict))
+
+#load metadata
+kmeta2<-data.table::fread("RNA_seq_metadata_all.txt",header=T) %>% select(c(1:15))
+
+#we know we want to check data from a study with multiple tissues so find the exact project and keep only that data
+kmeta2 %>% group_by(project) %>% summarize(length(unique(tissue_name)))
+mt.meta2<-kmeta2 %>% filter(project=="SRP011583") %>% transmute(sample=technical_rep,tissue=tissue_name)
+
+#fix the column names on the expression data  table
+kdf.names2<-basename(file_path_sans_ext(colnames(salmon_ds)))
+colnames(salmon_ds)<-kdf.names2
+
+salmon_ds[1:5,1:5] #what it looks like
+
+#keep specific project samples
+mt.exp2<-salmon_ds[colnames(salmon_ds) %in% mt.meta2$sample]
+mt.exp2[1:5,1:5]
+
+#keep only the genes you are interested in!
+mt.exp.genelist2<-mt.exp2[row.names(mt.exp2) %in% genes.tab2$gene_name,]
+
+mt.exp.genelist2[1:5,1:5] #what it looks like
+
+#the gene expression is already normalized log2( expression + 1) so there should not be normalization issues
+#First glance of the expression heatmap of your selected genes
+pheatmap(mt.exp.genelist2)
+
+#make the plot human readable
+fixed.mt.exr.table2 <- mt.exp.genelist2 %>% t() %>%  as.data.frame() %>% tibble::rownames_to_column(var="sample") %>%
+  inner_join(mt.meta2,by="sample") %>%
+  select(-sample) %>%
+  tibble::column_to_rownames(var="tissue") #you have joinned the metadata and expression by the sample name and then used the name of tissue
+
+#rename the gene names of the expression table with the dictionary of human readable names
+colnames(fixed.mt.exr.table2)<-genes.tab2$dict[match(colnames(fixed.mt.exr.table2),genes.tab2$gene_name)]
+
+#plot heatmap
+pheatmap::pheatmap(t(fixed.mt.exr.table2),color = viridis(100))
+ggtab2<-fixed.mt.exr.table2 %>% tibble::rownames_to_column(var="tissue") %>%  pivot_longer(-tissue,names_to="gene",values_to = "exp")
+
+my_breaks <- c(0, 0.01, 0.1, 1, 10, 100,200)
+american <- ggplot(ggtab2)+geom_tile(aes(tissue,gene,fill=exp)) +
+  scale_fill_viridis_c(breaks = my_breaks, labels = my_breaks,
+                       trans = scales::pseudo_log_trans(sigma = 0.001)) + labs(fill="log-fold expression", y="Genes",x="Tissues") + 
+  theme(axis.text.x = element_text(angle = 30, size=7.5)) + 
+  theme(axis.text.y = element_text(size=7.5)) +
+  theme(legend.key.size = unit(0.375, "cm")) +
+  theme(legend.title = element_text(size = 10))
+
+american
+
+ggsave("VEP_genes_american.png",width=7,height=2,dpi=300)
+
