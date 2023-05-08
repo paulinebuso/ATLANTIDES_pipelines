@@ -1,0 +1,36 @@
+#!/bin/bash
+#SBATCH --ntasks=1         # 1 core(CPU)
+#SBATCH --nodes=1
+#SBATCH --job-name=vep_input
+#SBATCH --mem=8G
+#SBATCH --constraint=avx2
+
+module load BCFtools
+module load SAMtools
+module load tabixpp/1.1.0-GCC-10.2.0
+
+#extract variant list from the bedtools intersect between XP-EHH/Fst and the genes to create a vcf file with only variants overlapping with genes. 
+#This allow to input the variants from bedtools intersect overlapping with genes into the Variant Effect Predictor input in Ensembl and see if some snps have an impact on genes
+
+#FILE=/mnt/SCRATCH/pabu/bedtools/relevant_windows_files/ll00000001_unique_duppair.tab
+#VCF=/mnt/SCRATCH/pabu/Soft_filtering/4pops_merged_filtered_depth_lqual_miss.recode.vcf.gz
+#OUT=/mnt/SCRATCH/pabu/bedtools/relevant_windows_files
+
+#bcftools view -R $FILE -O z -o ${OUT}/test2.vcf.gz $VCF
+#tabix -p vcf ${OUT}/test2.vcf.gz
+
+#Extract the variants from VEP that have an impact on the genes (missence, stop-lost, splice-acceptor)
+#Need the allelic frequencies to check if the variants are really under selection in farmed populations from North America or Norway independantly
+
+VAR_NA=/mnt/SCRATCH/pabu/bedtools/relevant_windows_files/variants_vep_NA.tab
+VAR_NO=/mnt/SCRATCH/pabu/bedtools/relevant_windows_files/variants_vep_NO.tab
+POP_FNA=/mnt/SCRATCH/pabu/Raw_datasets/Farmed_NAmerica_ids.vcf.gz
+POP_WNA=/mnt/SCRATCH/pabu/Raw_datasets/Wild_NAmerica_ids.vcf.gz
+POP_FNO=/mnt/SCRATCH/pabu/Raw_datasets/Farmed_european_ids.vcf.gz 
+POP_WNO=/mnt/SCRATCH/pabu/Raw_datasets/Wild_european_ids.vcf.gz
+OUT=/mnt/SCRATCH/pabu/bedtools/relevant_windows_files
+
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%AF\n' -R $VAR_NA $POP_FNA > ${OUT}/allelic_freq_FNA.txt
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%AF\n' -R $VAR_NA $POP_WNA > ${OUT}/allelic_freq_WNA.txt
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%AF\n' -R $VAR_NO $POP_FNO > ${OUT}/allelic_freq_FNO.txt
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%AF\n' -R $VAR_NO $POP_WNO > ${OUT}/allelic_freq_WNO.txt
