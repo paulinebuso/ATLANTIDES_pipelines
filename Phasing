@@ -10,15 +10,20 @@
 #The input data need to be "clean", filtered in a previous step. (See my Github pipeline : Soft filtering).
 #Here the example of Farmed european popultion. The input and output folder need to be adapted depending on the dataset you want to phase. In my project, I phased the 4 populations independantly.
 
-#Input folder
-WD=/mnt/SCRATCH/pabu/Soft_filtering/celian_files/farmed_european_filtered.recode.vcf.gz
-#Output folder
-WD2=/net/fs-2/scale/OrionStore/Scratch/pabu/Phasing/celian_files #output folder
+#!/bin/bash
+#SBATCH --ntasks=16 #10 cores(CPU) - for parallel processing of a sample
+#SBATCH --nodes=1 #Use 1 node
+#SBATCH --mem=50G #Default memory per CPU is 3GB
+#SBATCH --job-name=phasing
+#SBATCH --output=phasing_MOWI_job_output.%j.txt #output
+
+WD=/mnt/SCRATCH/pabu/Soft_filtering/maf_filtering_for_phasing/farmed_european.vcf.gz #working directory
+WD2=/net/fs-2/scale/OrionStore/Scratch/pabu/Phasing/last #output folder
 
 #Index the input if not already done before
 #singularity exec /cvmfs/singularity.galaxyproject.org/t/a/tabixpp:1.1.0--h470d46e_11 tabix -p vcf $WD 
 
-#Estimate genotype likelihhod with beagle 4.1 wilt "gl" option 
+#Estimate gl with beagle 4.1. "gl" option take in account genotype likelihood
 singularity exec /cvmfs/singularity.galaxyproject.org/b/e/beagle:4.1_21Jan17.6cc.jar--0 beagle gl=$WD out=${WD2}/MOWI_gl_estimates nthreads=16 overlap=600 window=10000
 
 #Index the output
@@ -29,4 +34,3 @@ singularity exec /cvmfs/singularity.galaxyproject.org/b/e/beagle:4.1_21Jan17.6cc
 
 ##Index the final output 
 singularity exec /cvmfs/singularity.galaxyproject.org/t/a/tabixpp:1.1.0--h470d46e_11 tabix -p vcf ${WD2}/Farmed_european_phased.vcf.gz #indexer l'output
-
