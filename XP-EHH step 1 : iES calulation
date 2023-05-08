@@ -1,0 +1,28 @@
+library(rehh)
+library(vcfR)
+library(tidyverse)
+library(readr)
+library(ggplot2)
+
+
+args <- commandArgs()
+
+
+chrom <- args[6]
+
+hapfilefarm<-paste("/mnt/SCRATCH/pabu/Phasing/phased_files_ch/celian_files/farmed_european/Farmed_european_phased_",chrom,".vcf.gz",sep="")
+
+ch_farmed <- data2haplohh(hap_file = hapfilefarm,polarize_vcf = FALSE,vcf_reader = "data.table")
+ch_eis_farmed <- scan_hh(ch_farmed)
+
+filename_farmed<-paste("/mnt/SCRATCH/cedi/phDSalmon/evolutionary_analysis/pauline_data/table_ies/farmed_",chrom,".txt",sep="")
+write.table(ch_eis_farmed,file=filename_farmed,row.names=FALSE)
+
+
+hapfilewild<-paste("/mnt/SCRATCH/pabu/Phasing/phased_files_ch/celian_files/wild_european/Wild_european_phased_",chrom,".vcf.gz",sep="")
+ch_wild <- data2haplohh(hap_file = hapfilewild,polarize_vcf = FALSE,vcf_reader = "data.table")
+
+ch_eis_wild <- scan_hh(ch_wild)
+
+filename_wild<-paste("/mnt/SCRATCH/cedi/phDSalmon/evolutionary_analysis/pauline_data/table_ies/wild_",chrom,".txt",sep="")
+write.table(ch_eis_wild,file=filename_wild,row.names=FALSE)
