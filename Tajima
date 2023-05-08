@@ -7,23 +7,14 @@
 #SBATCH --mail-type=END
 #SBATCH --output=tajima.out
 
-#charge the required modules 
 module load HTSlib
 module load VCFtools
 
-#file pathways of my populations
-VCF1=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_Europe_filtered.recode.vcf.gz
-VCF2=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_American_filtered.recode.vcf.gz
-VCF3=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_Europe_filtered.recode.vcf.gz
-VCF4=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_American_filtered.recode.vcf.gz
+#these inputs are from a merged file already filtered for depth, low quality variants, and missingness
+VCF1=/mnt/SCRATCH/pabu/Soft_filtering/farmed_european.vcf.gz
+VCF2=/mnt/SCRATCH/pabu/Soft_filtering/farmed_american.vcf.gz
 
-#output folder for results
 OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/Tajima
-
-#Tajima calculation command
-#first command use vcftools module and call the input file with "--gzvcf" (zip format) and calculate tajima's D on non overlapping windows of 20 000 bp. 
-#"--out" indicates the pathway above for outputting the results.
-#For other options on the calculations : see https://vcftools.github.io/documentation.html
 
 vcftools --gzvcf $VCF1 --out ${OUT}/tajima_farmed_euro --TajimaD 20000
 vcftools --gzvcf $VCF1 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/farmed_euro_nucl_div_SNPs
@@ -31,8 +22,3 @@ vcftools --gzvcf $VCF1 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/farm
 vcftools --gzvcf $VCF2 --out ${OUT}/tajima_farmed_american --TajimaD 20000
 vcftools --gzvcf $VCF2 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/farmed_american_nucl_div_SNPs
 
-vcftools --gzvcf $VCF3 --out ${OUT}/tajima_wild_euro --TajimaD 20000
-vcftools --gzvcf $VCF3 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/wild_euro_nucl_div_SNPs 
-
-vcftools --gzvcf $VCF4 --out ${OUT}/tajima_wild_american --TajimaD 20000
-vcftools --gzvcf $VCF4 --window-pi 20000 --window-pi-step 5000 --out ${OUT}/wild_american_nucl_div_SNPs
