@@ -1,0 +1,313 @@
+setwd("~/ATLANTIDES/cross_pop")
+library(rehh)
+library(vcfR)
+library(tidyverse)
+library(readr)
+library(ggplot2)
+
+farmed_14 <- data2haplohh(hap_file = "Farmed_NAmerica_phased_ssa14.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+test <- calc_ehh(farmed_14, mrk = "ssa14_76547838_T_C", include_nhaplo = FALSE)
+
+test$mrk.name
+test$freq
+test$ehh
+
+plot(test)
+
+wild_14 <- data2haplohh(hap_file = "Wild_NAmerica_phased_ssa14.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+test2 <- calc_ehh(wild_14, mrk = "ssa14_76547838_T_C", include_nhaplo = FALSE)
+
+test2$mrk.name
+test2$freq
+test2$ehh
+
+plot(test2)
+
+######bifurcation
+
+furcation_farmed <- calc_furcation(farmed_14,
+                            mrk = "ssa14_76547818_T_C")
+plot(furcation_farmed, 
+     xlim = c(7.4E+7, 7.8E+7),
+     lwd = 0.05,
+     hap.names = hap.names(farmed_14),
+     cex.lab = 0.3)
+
+furcation_wild <- calc_furcation(wild_14,
+                                 mrk = "ssa14_76547818_T_C")
+plot(furcation_wild, 
+     xlim = c(7.5E+7, 7.7E+7),
+     lwd = 0.05,
+     hap.names = hap.names(wild_14),
+     cex.lab = 0.3)
+
+####--------------------EUROPE-------------------####
+
+##ssa27
+
+farmed_27 <- data2haplohh(hap_file = "Farmed_european_phased_ssa27.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+wild_27 <- data2haplohh(hap_file = "Wild_european_phased_ssa27.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+#EHH
+
+furcation_farmed <- calc_furcation(farmed_27,
+                                   mrk = "ssa27_10802925_C_T")
+plot(furcation_farmed, 
+     xlim = c(1E+7, 1.1E+7),
+     lwd = 0.05,
+     hap.names = hap.names(farmed_27),
+     cex.lab = 0.3)
+
+furcation_wild <- calc_furcation(wild_27,
+                                 mrk = "ssa27_10802925_C_T")
+plot(furcation_wild, 
+     xlim = c(1E+7, 1.1E+7),
+     lwd = 0.05,
+     hap.names = hap.names(wild_27),
+     cex.lab = 0.3)
+
+###ssa05 farmed
+
+#variant1 EHH
+farmed_05 <- data2haplohh(hap_file = "Farmed_european_phased_ssa05.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+farmed_05_ehh <- calc_ehh(farmed_05, mrk = "ssa05_57560371_A_G", include_nhaplo = FALSE)
+
+plot(farmed_05_ehh)
+
+#Variant1 furcation
+
+furcation_farmed05 <- calc_furcation(farmed_05, mrk = "ssa05_57560371_A_G")
+
+plot(furcation_farmed05, 
+     xlim = c(5.7E+7, 5.8E+7),
+     lwd = 0.05,
+     hap.names = hap.names(farmed_05),
+     cex.lab = 0.25,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+#variant2 ehh
+
+farmed_05_ehh2 <- calc_ehh(farmed_05, mrk = "ssa05_57560633_A_T", include_nhaplo = FALSE)
+
+plot(farmed_05_ehh2)
+
+#Variant2 furcation
+
+furcation_farmed05 <- calc_furcation(farmed_05, mrk = "ssa05_57560633_A_T")
+
+plot(furcation_farmed05, 
+     xlim = c(5.7E+7, 5.8E+7),
+     lwd = 0.05,
+     hap.names = hap.names(farmed_05),
+     cex.lab = 0.25,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+###ssa05 wild
+wild_05 <- data2haplohh(hap_file = "Wild_european_phased_ssa05.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+#variant1 EHH
+
+wild_05_ehh <- calc_ehh(wild_05, mrk = "ssa05_57560371_A_G", include_nhaplo = FALSE)
+
+plot(wild_05_ehh)
+
+#Variant1 furcation
+
+furcation_wild05 <- calc_furcation(wild_05, mrk = "ssa05_57560371_A_G")
+
+plot(furcation_wild05, 
+     xlim = c(5.754E+7, 5.76E+7),
+     lwd = 0.05,
+     hap.names = hap.names(wild_05),
+     cex.lab = 0.3,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+#variant2 ehh
+
+wild_05_ehh2 <- calc_ehh(wild_05, mrk = "ssa05_57560633_A_T", include_nhaplo = FALSE)
+
+plot(wild_05_ehh2)
+
+#Variant2 furcation
+
+furcation_wild052 <- calc_furcation(wild_05, mrk = "ssa05_57560633_A_T")
+
+plot(furcation_wild052, 
+     xlim = c(5.754E+7, 5.76E+7),
+     lwd = 0.05,
+     hap.names = hap.names(wild_05),
+     cex.lab = 0.25,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+###ssa27-------------------------
+farmed_27 <- data2haplohh(hap_file = "Farmed_european_phased_ssa27.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+#ehh
+
+farmed27_ehh <- calc_ehh(farmed_27, mrk = "ssa27_10802925_C_T", include_nhaplo = FALSE)
+
+plot(farmed27_ehh)
+
+#furcation
+
+furcation_farmed27 <- calc_furcation(farmed_27, mrk = "ssa27_10802925_C_T")
+
+plot(furcation_farmed27, 
+     xlim = c(1.065E+7, 1.12E+7),
+     lwd = 0.05,
+     hap.names = hap.names(farmed_27),
+     cex.lab = 0.3,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+#wild 
+wild_27 <- data2haplohh(hap_file = "Wild_european_phased_ssa27.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+#ehh
+
+wild_27_ehh <- calc_ehh(wild_27, mrk = "ssa27_10802925_C_T", include_nhaplo = FALSE)
+
+plot(wild_27_ehh)
+
+#furcation
+
+furcation_wild27 <- calc_furcation(wild_27, mrk = "ssa27_10802925_C_T")
+
+plot(furcation_wild27, 
+     xlim = c(1.075E+7, 1.09E+7),
+     lwd = 0.05,
+     hap.names = hap.names(wild_27),
+     cex.lab = 0.3,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+####---------------CANADIAN------------------####
+
+#ch14 --> because a lot of variants, change the variant name only
+
+farmed_14 <- data2haplohh(hap_file = "Farmed_NAmerica_phased_ssa14.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+farmed_14_ehh <- calc_ehh(farmed_14, mrk = "ssa14_76547838_T_C", include_nhaplo = FALSE)
+
+plot(farmed_14_ehh)
+
+#furcation
+
+furcation_farmed14 <- calc_furcation(farmed_14, mrk = "ssa14_76547838_T_C")
+
+plot(furcation_farmed14, 
+     xlim = c(7.62E+7, 7.67E+7),
+     lwd = 0.05,
+     hap.names = hap.names(farmed_14),
+     cex.lab = 0.3,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+#wild 
+
+#ch14 --> because a lot of variants, change the variant name only
+
+wild_14 <- data2haplohh(hap_file = "Wild_NAmerica_phased_ssa14.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+wild_14_ehh <- calc_ehh(wild_14, mrk = "ssa14_64331704_C_A", include_nhaplo = FALSE)
+
+plot(wild_14_ehh)
+
+#furcation
+
+furcation_wild14 <- calc_furcation(wild_14, mrk = "ssa14_64331704_C_A")
+
+plot(furcation_wild14, 
+     xlim = c(6.4325E+7, 6.434E+7),
+     lwd = 0.05,
+     hap.names = hap.names(wild_14),
+     cex.lab = 0.3,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+#ch17 --> 
+
+farmed_17 <- data2haplohh(hap_file = "Farmed_NAmerica_phased_ssa17.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+farmed_17_ehh <- calc_ehh(farmed_17, mrk = "ssa17_26765566_C_T", include_nhaplo = FALSE)
+
+plot(farmed_17_ehh)
+
+#furcation
+
+furcation_farmed17 <- calc_furcation(farmed_17, mrk = "ssa17_26765566_C_T")
+
+plot(furcation_farmed17, 
+     xlim = c(2.65E+7, 2.72E+7),
+     lwd = 0.05,
+     hap.names = hap.names(farmed_17),
+     cex.lab = 0.3,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+#wild 
+
+wild_17 <- data2haplohh(hap_file = "Wild_NAmerica_phased_ssa17.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+wild_17_ehh <- calc_ehh(wild_17, mrk = "ssa17_26765566_C_T", include_nhaplo = FALSE)
+
+plot(wild_17_ehh)
+
+#furcation
+
+furcation_wild17 <- calc_furcation(wild_17, mrk = "ssa17_26765566_C_T")
+
+plot(furcation_wild17, 
+     xlim = c(2.65E+7, 2.72E+7),
+     lwd = 0.05,
+     hap.names = hap.names(wild_17),
+     cex.lab = 0.3,
+     cex.main = 1,
+     legend.xy.coords = "none")
+
+#ch09 -< several variants so just change the variant name
+
+farmed_09 <- data2haplohh(hap_file = "Farmed_NAmerica_phased_ssa09.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+farmed_09_ehh <- calc_ehh(farmed_09, mrk = "ssa09_48294282_G_C", include_nhaplo = FALSE)
+
+plot(farmed_09_ehh)
+
+#furcation
+
+furcation_farmed09 <- calc_furcation(farmed_09, mrk = "ssa09_48294282_G_C")
+
+plot(furcation_farmed09, 
+     xlim = c(4.7E+7, 5E+7),
+     lwd = 0.05,
+     hap.names = hap.names(farmed_09),
+     cex.lab = 0.3,
+     cex.main = 1.5,
+     legend.xy.coords = "none")
+
+#wild 
+
+wild_09 <- data2haplohh(hap_file = "Wild_NAmerica_phased_ssa09.vcf.gz", polarize_vcf = FALSE,vcf_reader = "data.table")
+
+wild_09_ehh <- calc_ehh(wild_09, mrk = "ssa09_48294282_G_C", include_nhaplo = FALSE)
+
+plot(wild_09_ehh)
+
+#furcation
+
+furcation_wild09 <- calc_furcation(wild_09, mrk = "ssa09_48349333_G_A")
+
+plot(furcation_wild09, 
+     xlim = c(4.7E+7, 5E+7),
+     lwd = 0.05,
+     hap.names = hap.names(wild_09),
+     cex.lab = 0.3,
+     cex.main = 1,
+     legend.xy.coords = "none")
