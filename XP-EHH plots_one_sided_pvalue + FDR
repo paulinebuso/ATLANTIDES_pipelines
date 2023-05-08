@@ -1,0 +1,261 @@
+library(rehh)
+library(vcfR)
+library(tidyverse)
+library(readr)
+library(ggplot2)
+
+#RESULTS
+#two ways to analyse XP-EHH - two-sided pvalues or one-sided pvalue
+
+###ONE-SIDED EURO
+
+euro_one_sided <- read.table("~/ATLANTIDES/cross_pop/xpehh_table_EU_3.txt", header = TRUE)
+
+#keep only significant variants with a threshold of 0.0001 : FALSE DISCOVERY RATE
+FDR_euro_one_sided<-euro_one_sided[euro_one_sided$LOGPVALUE_RIGHT>=-log10(0.0001),] 
+
+#Simulation of FDR with that threshold
+fdr<-function(n,p,c){
+  return((n*p)/c)
+}
+
+fdr(1039196,0.0001,1914) 
+
+#FDR = 0.054 = 5.4% = ~103 of 1914 false positives if 0.0001 (-log10(pvalue=4))
+#FDR2 = 0.011 = 1.1 = ~10 of 868 false positives if 0.00001 (-log10(pvalue=5))
+#FDR3 = 0.18 = 18% = 994 of 5525 false positives if 0.001 (-log10(pvalue=3))
+
+#check if only positives values are detected
+ggplot(FDR_euro_one_sided,aes(x=XPEHH_Farmed_european_Wild_european))+geom_histogram() +
+  xlim(c(-3,8))
+
+#plot preparation
+#remove ssa and ssa0
+euro_one_sided <- euro_one_sided %>%
+  dplyr::mutate(CHR=str_remove_all(CHR,"ssa")) %>% 
+  dplyr::mutate_at('CHR',as.numeric) 
+
+#create a column with cumulative position for the x axis
+lengthvector<-c(174498729,95481959,105780080,90536438,92788608,96060288,68862998,28860523,161282225,125877811,111868677,101677876,
+                114417674,101980477,110670232,96486271,87489397,84084598,88107222,96847506,59819933,63823863,52460201,49354470,54385492,
+                55994222,45305548,41468476,43051128)
+chromadd<-c(0,cumsum(lengthvector+20000000)[1:28])
+chromname<-unique(euro_one_sided$CHR)
+chrommid<-chromadd+lengthvector/2
+listval<-cbind.data.frame(chromname,lengthvector,chromadd,chrommid)
+euro_one_sided$newpos<-euro_one_sided$POSITION+listval[match(euro_one_sided$CHR,listval$chromname),3]
+
+#threshold line at 4 accoring to the FDR
+threshold <- -log10(0.0001)
+
+euro <- ggplot(euro_one_sided, aes(x = newpos, y = LOGPVALUE_RIGHT,color = as.factor(CHR))) + 
+  scale_color_manual(values = rep(c("#022f73","#7ebaf2"), length(unique(euro_one_sided$CHR))))+
+  geom_point(alpha = 0.90,size=1.5)+ 
+  theme_classic() +
+  geom_hline(yintercept = threshold, color = "red", linetype = 1, linewidth = 0.6) +
+  scale_x_continuous(label =listval$chromname, breaks = listval$chrommid )+
+  theme(legend.position="none")+
+  labs(y="−log10(1-Φ(XP-EHH))",x="Chromosome")
+
+euro
+
+ggsave("xp-ehh_euro_plot_final.png",width=12,height=5,dpi=300)
+dev.off()
+
+###ONE-SIDED AMERICAN
+
+american_one_sided <- read.table("~/ATLANTIDES/cross_pop/xpehh_table_AM_3.txt", header = TRUE) %>% as_tibble %>% rename_all(~c("CHR","POSITION","XPEHH_Farmed_american_Wild_american","LOGPVALUE_RIGHT"))
+
+#keep only significant variants with a threshold of 0.0001
+FDR_american_one_sided<-american_one_sided[american_one_sided$LOGPVALUE_RIGHT>=-log10(0.0001),] 
+
+#Simulation of FDR with that threshold
+fdr<-function(n,p,c){
+  return((n*p)/c)
+}
+
+fdr(1039196,0.0001,1988) 
+
+#FDR = 0.052 = 5.2% = ~103 of 1982 false positives if 0.0001 (-log10(pvalue=4))
+#FDR2 = 0.013 = 1.3 = ~10 of 776 false positives if 0.00001 (-log10(pvalue=5))
+#FDR3 = 0.18 = 18% = 986 of 5482 false positives if 0.001 (-log10(pvalue=3))
+
+#check if only positives values are detected
+ggplot(FDR_american_one_sided,aes(x=XPEHH_Farmed_american_Wild_american))+geom_histogram() +
+  xlim(c(-3,8))
+
+ggsave("XP-EHH American FDR one sided pvalues.png", width=12,height=5,dpi=300)
+dev.off()
+
+#remove ssa and ssa0
+american_one_sided <- american_one_sided %>%
+  dplyr::mutate(CHR=str_remove_all(CHR,"ssa")) %>% 
+  dplyr::mutate_at('CHR',as.numeric)
+
+#plot results
+lengthvector<-c(174498729,95481959,105780080,90536438,92788608,96060288,68862998,28860523,161282225,125877811,111868677,101677876,
+                114417674,101980477,110670232,96486271,87489397,84084598,88107222,96847506,59819933,63823863,52460201,49354470,54385492,
+                55994222,45305548,41468476,43051128)
+chromadd<-c(0,cumsum(lengthvector+20000000)[1:28])
+chromname<-unique(american_one_sided$CHR)
+chrommid<-chromadd+lengthvector/2
+listval<-cbind.data.frame(chromname,lengthvector,chromadd,chrommid)
+american_one_sided$newpos<-american_one_sided$POSITION+listval[match(american_one_sided$CHR,listval$chromname),3]
+
+#threshold line at 4
+threshold <- -log10(0.0001)
+
+american <- ggplot(american_one_sided, aes(x = newpos, y = LOGPVALUE_RIGHT,color = as.factor(CHR))) + 
+  scale_color_manual(values = rep(c("#022f73","#7ebaf2"), length(unique(american_one_sided$CHR))))+
+  geom_point(alpha = 0.90,size=1.5)+ 
+  theme_classic() +
+  geom_hline(yintercept = threshold, color = "red", linetype = 1, linewidth = 0.6) +
+  scale_x_continuous(label =listval$chromname, breaks = listval$chrommid )+
+  theme(legend.position="none")+
+  labs(y="−log10(1-Φ(XP-EHH))",x="Chromosome")
+
+american
+
+ggsave("xp-ehh_american_plot_final.png",width=12,height=5,dpi=300)
+dev.off()
+
+#export tables with significant values for bedtools + Variant effect predictor
+
+FDR_american_one_sided <- FDR_american_one_sided %>%
+  dplyr::mutate(CHR=str_remove_all(CHR,"ssa")) %>% 
+  dplyr::mutate_at('CHR',as.numeric)
+
+FDR_american_one_sided <- FDR_american_one_sided %>%           
+  mutate(POSITION_END = POSITION)  #Create duplicate column f position for bedtools input
+
+FDR_american_one_sided <- FDR_american_one_sided %>%
+  dplyr::relocate(POSITION_END, .before=XPEHH_Farmed_american_Wild_american) #put the colum in the right order
+
+FDR_american_one_sided <- FDR_american_one_sided[,-5]
+FDR_american_one_sided <- FDR_american_one_sided[,-4]
+
+options("scipen"=100, "digits"=4) #avoid scientific notation, keep the file format
+write.table(FDR_american_one_sided, file = "~/ATLANTIDES/bedtools/xp_ehh_american.bed", col.names = FALSE, row.names = FALSE, sep="\t", quote = FALSE)
+
+FDR_euro_one_sided <- FDR_euro_one_sided %>%
+  dplyr::mutate(CHR=str_remove_all(CHR,"ssa")) %>% 
+  dplyr::mutate_at('CHR',as.numeric)
+
+FDR_euro_one_sided <- FDR_euro_one_sided %>%           
+  mutate(POSITION_END = POSITION)  #Create duplicate column f position for bedtools input
+
+FDR_euro_one_sided <- FDR_euro_one_sided %>%
+  dplyr::relocate(POSITION_END, .before=XPEHH_Farmed_european_Wild_european)
+
+FDR_euro_one_sided <- FDR_euro_one_sided[,-5]
+FDR_euro_one_sided <- FDR_euro_one_sided[,-4]
+
+options("scipen"=100, "digits"=4) #avoid scientific notation, keep the file format
+write.table(FDR_euro_one_sided, file = "~/ATLANTIDES/bedtools/xp_ehh_euro.bed", col.names = FALSE, row.names = FALSE, sep="\t", quote = FALSE)
+
+#-------------------------------------------------------------------------
+
+#VARIANT EFFECT PREDICTOR : discovered 14 SNPS impacting genes : 3 in european, 11 in american
+
+#variant VEP input data - EUROPE
+vep <- read.table("~/ATLANTIDES/cross_pop/VEP_variants_genes_europe.tsv", header = TRUE, sep = "\t")
+
+#merge the two table by position in order to have all the infors for the 3 variants of interest
+
+vep_plot <- merge(euro_one_sided, vep, by = "POSITION")
+vep_plot <- vep_plot[,-6] #remove reduncy colunm
+colnames(vep_plot)[2] <- "CHR" #change name column
+
+library(ggrepel)
+euro + 
+  geom_point(data = vep_plot, aes(x = newpos, y = LOGPVALUE_RIGHT), size = 1.75, color = "#ff1c27") +
+  geom_text_repel(data=vep_plot,aes(label = GENE, x = newpos, y = LOGPVALUE_RIGHT),max.overlaps = 100,size = 4,min.segment.length = 0, color = "black", fontface = "bold", box.padding = 0.5, point.padding = 0.25)
+
+ggsave("xp-ehh_euro_vep_plot_final.png",width=12,height=5,dpi=300)
+dev.off()
+#VEP_plot
+
+#variant VEP input data - AMERICAN
+vep2 <- read.table("~/ATLANTIDES/cross_pop/VEP_variants_genes_american.tsv", header = TRUE, sep = "\t")
+
+#merge the two table by position in order to have all the infors for the 3 variants of interest
+
+vep_plot2 <- merge(american_one_sided, vep2, by = "POSITION")
+vep_plot2 <- vep_plot2[,-6] #remove reduncy colunm
+colnames(vep_plot2)[2] <- "CHR" #change name column
+
+library(ggrepel)
+american + 
+  geom_point(data = vep_plot2, aes(x = newpos, y = LOGPVALUE_RIGHT), size = 1.75, color = "#ff1c27") +
+  geom_text_repel(data=vep_plot2,aes(label = GENE, x = newpos, y = LOGPVALUE_RIGHT),max.overlaps = 100,size = 3.5,min.segment.length = 0, color = "black", fontface = "bold", box.padding = 0.5, point.padding = 0.25)
+                  
+#box.padding = unit(0.35, "lines"), color="black",point.padding = unit(0.3, "lines"))
+#geom_text(data = vep_plot2, aes(x = newpos, y = LOGPVALUE_RIGHT, label = GENE), size = 2.5, color = "black")
+
+ggsave("xp-ehh_vep_american_plot_final.png",width=12,height=5,dpi=300)
+dev.off()
+
+# ###TWO_SIDED EURO
+# 
+# euro_two_sided <- read.table("~/ATLANTIDES/cross_pop/xpehh_table_EU_2.txt", header = TRUE)
+# 
+# FDR_euro_two_sided<-euro_two_sided[euro_two_sided$LOGPVALUE>=-log10(0.0001),] 
+# 
+# ##fdr calculation
+# ##the lower the value the better it is
+# # n = number of SNPs total
+# # p = p-value used
+# # c = number of SNPs that pass the threshold (p-value)
+# fdr<-function(n,p,c){
+#   return((n*p)/c)
+# }
+# 
+# fdr(1039196,0.001,4285)
+# 
+# #FDR = 0.059 = 6% = 102 of 1740 false positives detected (-log10(pvalue=4)
+# #FDR = 0.012 = 1.2% = 10.2 of 850 false positive detected (-log10(pvalue=5)
+# #FDR = 0.24 = 24% = 1028 of 4285 false positives detected
+# 
+# #what king of values are detected : 
+# #here we saw the most values under selection detected are in farmed but some are detected in wild
+# ggplot(FDR_euro_two_sided,aes(x=XPEHH_Farmed_european_Wild_european))+geom_histogram()
+# ggsave("xp-ehh distribution FDR.png",width=12,height=5,dpi=300)
+# dev.off()
+# 
+# manhattanplot(euro_two_sided,
+#               threshold = 4,
+#               pval = TRUE,
+#               main = "XP-EHH European populations two sided pvalues")
+
+# ###TWO_SIDED AMERICAN
+# 
+# american_two_sided <- read.table("~/ATLANTIDES/cross_pop/xpehh_table_AM_2.txt", header = TRUE) %>% as_tibble %>% rename_all(~c("CHR","POSITION","XPEHH_Farmed_american_Wild_american","LOGPVALUE"))
+# 
+# FDR_american_two_sided<-american_two_sided[american_two_sided$LOGPVALUE>=-log10(0.0001),] 
+# 
+# ##fdr calculation
+# ##the lower the value the better it is
+# # n = number of SNPs total
+# # p = p-value used
+# # c = number of SNPs that pass the threshold (p-value)
+# fdr<-function(n,p,c){
+#   return((n*p)/c)
+# }
+# 
+# fdr(1043605,0.001,4375)
+# 
+# #FDR = 0.06 = 6% = 99 of 1645 false positives detected (-log10(pvalue=4)
+# #FDR = 0.014 = 1.4% = 10.09 of 721 false positive detected (-log10(pvalue=5)
+# #FDR = 0.23 = 23% = 1006 of 4345 false positives detected
+# 
+# #what king of values are detected : 
+# #here we saw the most values under selection detected are in farmed but some are detected in wild
+# ggplot(FDR_american_two_sided,aes(x=XPEHH_Farmed_american_Wild_american))+geom_histogram()
+# ggsave("XPEHH American twosided.png",width=12,height=5,dpi=300)
+# dev.off()
+# 
+# manhattanplot(american_two_sided,
+#               threshold = 4,
+#               pval = TRUE,
+#               main = "XP-EHH American populations two-sided pvalues")
+
