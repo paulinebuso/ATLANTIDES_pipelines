@@ -27,6 +27,7 @@ ch_wild_no_na<-ch_wild_no_na[!is.na(ch_wild_no_na$INES),]
 #is.numeric(ch_wild_no_na$IES)
 ch_wild_no_na$IES<-as.numeric(as.character(ch_wild_no_na$IES))
 ch_wild_no_na$INES<-as.numeric(as.character(ch_wild_no_na$INES))
+
 #remove the NAs
 xpehh_euro<- ies2xpehh(scan_pop1 =  ch_farmed_no_na,
                        scan_pop2 =  ch_wild_no_na,
