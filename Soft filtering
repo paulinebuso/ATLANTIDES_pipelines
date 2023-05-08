@@ -7,53 +7,67 @@
 #SBATCH --constraint=avx2
 
 #This pipeline is used to add filters, different from those in the GATK genotype calling pipeline. 
-#This filtering is useful before phasing and can be adapted according to the analyses you want to do. 
-#We have seen that FST and Tajima do not require soft filtering. 
-#But haplotype-based analyses that require phased data need to be filtered in depth. 
-#The filters were chosen according to the results obtained on the R data quality script. (see the R pipeline data quality)
+#The filtering is done on a merged file to keep only common markers with good quality.
 
-#Europe
-#My directories for input and outputs
-VCF1=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_Europe_filtered.recode.vcf.gz
-VCF2=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_Europe_filtered.recode.vcf.gz
-OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/Soft_filtering/celian_files
+#!/bin/bash
+#SBATCH --ntasks=1         # 1 core(CPU)
+#SBATCH --nodes=1
+#SBATCH --job-name=data_filtering.job
+#SBATCH --mem=20G
+#SBATCH --output=filtering_job_output.%j.txt
+#SBATCH --constraint=avx2
 
-#filters according to R results (can be adapted according to datasets and data quality)
-MIN_DEPTH1=8.5 #farmed
-MIN_DEPTH2=6 #wild
-MAX_DEPTH=30 #all pop
-MAF=0.01
-
-#Load the tools
 module load VCFtools
 module load tabixpp/1.1.0-GCC-10.2.0
 module load SAMtools
+module load BCFtools
 
-#Perform filteringwith VCFtools because Plink change the vcf format.
-vcftools --gzvcf $VCF1 --maf $MAF --min-meanDP $MIN_DEPTH1 --max-meanDP $MAX_DEPTH --minDP $MIN_DEPTH1 --maxDP $MAX_DEPTH --recode --out ${OUT}/farmed_european_filtered
-bgzip ${OUT}/farmed_european_filtered.recode.vcf #zip
-tabix -p vcf ${OUT}/farmed_european_filtered.recode.vcf.gz #index
+#merge the 4 populations (raw snps previously extracted)
 
-vcftools --gzvcf $VCF2 --maf $MAF --min-meanDP $MIN_DEPTH2 --max-meanDP $MAX_DEPTH --minDP $MIN_DEPTH2 --maxDP $MAX_DEPTH --recode --out ${OUT}/wild_european_filtered
-bgzip ${OUT}/wild_european_filtered.recode.vcf #zip
-tabix -p vcf ${OUT}/wild_european_filtered.recode.vcf.gz #index
+bcftools merge /mnt/SCRATCH/pabu/Raw_datasets/Farmed_european_ids.vcf.gz /mnt/SCRATCH/pabu/Raw_datasets/Wild_european_ids.vcf.gz /mnt/SCRATCH/pabu/Raw_datasets/Farmed_NAmerica_ids.vcf.gz /mnt/SCRATCH/pabu/Raw_datasets/Wild_NAmerica_ids.vcf.gz | bgzip > /mnt/SCRATCH/pabu/Soft_filtering/4pops_merged.vcf.gz
+tabix -p vcf /mnt/SCRATCH/pabu/Soft_filtering/4pops_merged.vcf.gz
 
-#other option of filtering with plink : 
-#module load PLINK/2.00a2.3_x86_64 #also possible with plink 1.9 because it is still unphased data at this step.
-#plink2 --vcf ${OUT}/Wild_european_depth.recode.vcf --geno 0.1 --maf 0.05 --out ${OUT}/Wild_Norway_Pass_filtered --recode vcf bgz id-paste=iid --aec --threads 8 --dog
+#Pass filtering : to keep ony the variant that PASS the GATK filter tag from mapping and genotype calling pipeline
 
-###Filtering-AMERICAN###
-VCF3=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_American_filtered.recode.vcf.gz
-VCF4=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_American_filtered.recode.vcf.gz
+WD=/mnt/SCRATCH/pabu/Soft_filtering/4pops_merged.vcf.gz
+OUT=/mnt/SCRATCH/pabu/Soft_filtering
 
-#Filters for american population
-MIN_DEPTH3=12 #farmed
-MIN_DEPTH4=5 #wild
+bcftools view -H $WD | awk '{if(index($7,"PASS")){print $0}}' > ${OUT}/PASS_filtered.vcf #view and print only the table+remove all the variants which are not PASS
+bcftools view -h $WD > ${OUT}/header.vcf #view and print only the header
+cat ${OUT}/header.vcf ${OUT}/PASS_filtered.vcf > ${OUT}/4pops_merged_PASS.vcf #colle les deux
+bgzip ${OUT}/4pops_merged_PASS.vcf #compress
+tabix -p vcf ${OUT}/4pops_merged_PASS.vcf.gz #index
 
-vcftools --gzvcf $VCF3 --maf $MAF --min-meanDP $MIN_DEPTH3 --max-meanDP $MAX_DEPTH --minDP $MIN_DEPTH3 --maxDP $MAX_DEPTH --recode --out ${OUT}/farmed_american_filtered
-bgzip ${OUT}/farmed_american_filtered.recode.vcf
-tabix -p vcf ${OUT}/farmed_american_filtered.recode.vcf.gz #index
+#remove the weird variants with 3 alleles even I extracted the bi-allelic variants, some of them are still in the file
 
-vcftools --gzvcf $VCF4 --maf $MAF --min-meanDP $MIN_DEPTH4 --max-meanDP $MAX_DEPTH --minDP $MIN_DEPTH4 --maxDP $MAX_DEPTH --recode --out ${OUT}/wild_american_filtered
-bgzip ${OUT}/wild_american_filtered.recode.vcf
-tabix -p vcf ${OUT}/wild_american_filtered.recode.vcf.gz #index
+bcftools view -H ${OUT}/4pops_merged_PASS.vcf.gz | awk '$5 !~/,/ {print $0}' > ${OUT}/4pops_merged_PASS_trimmed.vcf
+bcftools view -h ${OUT}/4pops_merged_PASS.vcf.gz > ${OUT}/header_trimmed.vcf
+cat ${OUT}/header_trimmed.vcf ${OUT}/4pops_merged_PASS_trimmed.vcf > ${OUT}/4pops_merged_PASS_final.vcf
+bgzip ${OUT}/4pops_merged_PASS_final.vcf
+tabix -p vcf ${OUT}/4pops_merged_PASS_final.vcf.gz
+
+#Filtering : depth, low quality variants, missingness
+
+MIN_DEPTH=4
+MAX_DEPTH=30
+GQ=10
+MISS=0.9
+
+vcftools --gzvcf ${OUT}/4pops_merged_PASS_final.vcf.gz --min-meanDP $MIN_DEPTH --max-meanDP $MAX_DEPTH --minDP $MIN_DEPTH --maxDP $MAX_DEPTH --minGQ $GQ --max-missing $MISS --remove-filtered-all --recode --out  ${OUT}/4pops_merged_filtered_depth_lqual_miss
+bgzip ${OUT}/4pops_merged_filtered_depth_lqual_miss.recode.vcf
+tabix -p vcf ${OUT}/4pops_merged_filtered_depth_lqual_miss.recode.vcf.gz #index
+
+#demerge the files 
+
+bcftools view ${OUT}/4pops_merged_filtered_depth_lqual_miss.recode.vcf.gz -S ${OUT}/FE_samples.txt -O z -o ${OUT}/farmed_european.vcf.gz
+tabix -p vcf ${OUT}/farmed_european.vcf.gz
+
+bcftools view ${OUT}/4pops_merged_filtered_depth_lqual_miss.recode.vcf.gz -S ${OUT}/WE_samples.txt -O z -o ${OUT}/wild_european.vcf.gz
+tabix -p vcf ${OUT}/wild_european.vcf.gz
+
+bcftools view ${OUT}/4pops_merged_filtered_depth_lqual_miss.recode.vcf.gz -S ${OUT}/FA_samples.txt -O z -o ${OUT}/farmed_american.vcf.gz
+tabix -p vcf ${OUT}/farmed_american.vcf.gz
+
+bcftools view ${OUT}/4pops_merged_filtered_depth_lqual_miss.recode.vcf.gz -S ${OUT}/WA_samples.txt -O z -o ${OUT}/wild_american.vcf.gz
+tabix -p vcf ${OUT}/wild_american.vcf.gz
+
