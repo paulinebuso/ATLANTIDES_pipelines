@@ -1,0 +1,185 @@
+###BEDtools inputation###
+
+library(dplyr)
+library(tidyverse)
+
+#this script allow to extract the outliers from Fst and Tajima results + a file containing the Atlantic salmon genes from the most recent genome of reference/
+
+#EUROPE
+fst_euro <- read.table("~/ATLANTIDES/Fst/Fst_stats_Euro.windowed.weir.fst", header=TRUE) %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","BIN_END","N_VARIANTS","WEIGHTED_FST","MEAN_FST"))
+
+#remove the ssa and ssa0
+fst_euro <- fst_euro %>%
+  dplyr::mutate(CHROM=str_remove_all(CHROM,"ssa")) %>% 
+  dplyr::mutate_at('CHROM',as.numeric)
+
+#do a subset with top 1% highest values = quantile 0.99
+
+quantile(fst_euro$WEIGHTED_FST, c(.01, .99))
+quantile=0.227
+
+fst_input_bedtools <- fst_euro %>% filter(WEIGHTED_FST >=quantile)
+
+#remove colunm that does not matter
+fst_input_bedtools <- fst_input_bedtools[,-6]
+fst_input_bedtools <- fst_input_bedtools[,-5]
+fst_input_bedtools <- fst_input_bedtools[,-4]
+options("scipen"=100, "digits"=4) #avoid scientific notation, keep the file format
+write.table(fst_input_bedtools, file = "~/ATLANTIDES/bedtools/fst_input_bedtools.bed",col.names = FALSE,row.names = FALSE,sep="\t",quote = FALSE)
+
+#in write.table command : 
+#le format d'exportation : pas de nom de colonne,  pas de nom de ligne
+#le quote = FALSE ca permet d'eviter les guillemets qui posent aussi problemes des fois
+
+#or with subset fonction : 
+#option2<-subset(fst_euro, MEAN_FST >= 0.9)
+#option3 : fst_input_bedtools<- fst_euro[fst_euro$MEAN_FST>=0.90,]
+
+#Make Tajima's D input :
+
+Tajima_SNPs <- read.table("~/ATLANTIDES/Tajima/tajima_farmed_euro.Tajima.D") %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","N_SNPS","TajimaD"))
+
+Tajima_SNPs <- Tajima_SNPs %>%
+  dplyr::mutate(CHROM=str_remove_all(CHROM,"ssa")) %>% 
+  dplyr::mutate_at('CHROM',as.numeric)
+
+#Add Bin_end colum = bin_start + 20000 pb because it is the size of the window 
+new_col_euro <- Tajima_SNPs %>%
+  dplyr::mutate(BIN_END = BIN_START + 20000) #create the new colum
+
+new_col_euro <- new_col_euro %>%
+  dplyr::relocate(BIN_END, .before=N_SNPS) #put the colum in the right order
+
+#option2 : Tajima_SNPs$BIN_END<-Tajima_SNPs$BIN_START+20000
+
+#Keep variants with only 1% lowest values =quantile 0.01
+
+#transform NA to 0
+tajima_euro_input_bedtools <- new_col_euro %>%
+  dplyr::mutate_at('TajimaD', ~tidyr::replace_na(.,0))
+#remove the 0
+tajima_euro_input_bedtools<-tajima_euro_input_bedtools[tajima_euro_input_bedtools$TajimaD!=0,] #remove "0"
+
+quantile(tajima_euro_input_bedtools$TajimaD, c(0.01, 0.99))
+
+quantile2 <- -1.492
+tajima_euro_input_bedtools<- tajima_euro_input_bedtools %>% filter(TajimaD <= quantile2)
+tajima_euro_input_bedtools <- tajima_euro_input_bedtools[,-5]
+tajima_euro_input_bedtools <- tajima_euro_input_bedtools[,-4]
+
+options("scipen"=100, "digits"=4) #avoid scientific notation, keep the file format
+write.table(tajima_euro_input_bedtools, file = "~/ATLANTIDES/bedtools/tajima_euro_input_bedtools.bed",col.names = FALSE,row.names = FALSE,sep="\t",quote = FALSE)
+
+###table gene - Célian
+
+##import table with gene information
+tablegene<-read.table(file="https://salmobase.org/datafiles/TSV/genes/AtlanticSalmon/Ssal_v3.1/Ensembl_genes.tsv",header=TRUE,sep="\t")
+##remove contigs
+tablegene<-tablegene[!is.na(as.numeric(as.character(tablegene$seqname))),]
+## add a name colum
+#tablegene$NAMEID<-paste(tablegene$seqname,tablegene$start,tablegene$end,tablegene$gene_id,sep="_")
+##prefix<-ifelse(as.numeric(as.character(tablegene$seqname))>9,"ssa","ssa0")
+
+##rename chromosome name by adding ssa or ssa0
+tablegene$CHROM<-paste(ifelse(as.numeric(as.character(tablegene$seqname))>9,"ssa","ssa0"),tablegene$seqname,sep="")
+
+tablegene_relocate <- tablegene %>%
+  dplyr::relocate(CHROM, .before=seqname)
+
+gene_input_bedtools <- tablegene_relocate %>%
+  dplyr::relocate(seqname, .before=strand)
+
+#export the table 
+options("scipen"=100, "digits"=4) #avoid scientific notation, keep the file format
+write.table(gene_input_bedtools, file = "~/ATLANTIDES/bedtools/gene_input_bedtools.bed",col.names = FALSE,row.names = FALSE,sep="\t",quote = FALSE, fileEncoding = "UTF-8")
+
+####OR - table_gene - Marie####
+
+genes <- read.csv("gene_ssav3.1.csv", header = TRUE, sep=",")
+
+gene_input_bedtools <- genes %>%
+  dplyr::relocate(gene, .before=Strand)
+
+library(stringr)
+test <- gene_input_bedtools %>%  
+  mutate(Gene.name=if_else(!grepl("^\\w+",Gene.name),"xxx",Gene.name)) %>%
+  mutate(Gene.description=if_else(!grepl("^\\w+",Gene.description),"xxx",Gene.description))
+
+options("scipen"=100, "digits"=4) #avoid scientific notation, keep the file format
+write.table(test, file = "~/ATLANTIDES/bedtools/gene_input_bedtools.bed",col.names = FALSE,row.names = FALSE,sep="\t",quote = FALSE, fileEncoding = "UTF-8")
+
+####OR####
+#install.packages("ape")
+#library(ape)
+#gene_gff <- read.gff("~/ATLANTIDES/bedtools/Salmo_salar.Ssal_v3.1.108.abinitio.gff3.gz", na.strings = c(".", "?"), GFF3 = TRUE)
+
+#AMERICAN
+
+library(dplyr)
+library(tidyverse)
+
+#Make Fst input : take the fst output first
+fst_american <- read.table("~/ATLANTIDES/Fst/Fst_stats_American.windowed.weir.fst", header=TRUE) %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","BIN_END","N_VARIANTS","WEIGHTED_FST","MEAN_FST"))
+
+#remove the ssa and ssa0
+fst_american <- fst_american %>%
+  dplyr::mutate(CHROM=str_remove_all(CHROM,"ssa")) %>% 
+  dplyr::mutate_at('CHROM',as.numeric)
+
+#do a subset with top 1% highest values = quantile 0.99
+
+quantile(fst_american$WEIGHTED_FST, c(.01, .99))
+quantile_fst_american=0.168
+
+fst_american_input_bedtools <- fst_american %>% filter(WEIGHTED_FST >=quantile_fst_american)
+fst_american_input_bedtools <- fst_american_input_bedtools[,-6]
+fst_american_input_bedtools <- fst_american_input_bedtools[,-5]
+fst_american_input_bedtools <- fst_american_input_bedtools[,-4]
+
+options("scipen"=100, "digits"=4) #avoid scientific notation, keep the file format
+write.table(fst_american_input_bedtools, file = "~/ATLANTIDES/bedtools/fst_american_input_bedtools.bed",col.names = FALSE,row.names = FALSE,sep="\t",quote = FALSE)
+
+#in write.table command : 
+#le format d'exportation : pas de nom de colonne,  pas de nom de ligne
+#le quote = FALSE ca permet d'eviter les guillemets qui posent aussi problemes des fois
+
+#or with subset fonction : 
+#option2<-subset(fst_euro, MEAN_FST >= 0.9)
+#option3 : fst_input_bedtools<- fst_euro[fst_euro$MEAN_FST>=0.90,]
+
+#Make Tajima's D input :
+
+tajima_american <- read.table("~/ATLANTIDES/Tajima/tajima_farmed_american.Tajima.D") %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","N_SNPS","TajimaD"))
+
+tajima_american <- tajima_american %>%
+  dplyr::mutate(CHROM=str_remove_all(CHROM,"ssa")) %>% 
+  dplyr::mutate_at('CHROM',as.numeric)
+
+#Add Bin_end colum = bin_start + 20000 pb because it is the size of the window 
+new_col_american <- tajima_american %>%
+  dplyr::mutate(BIN_END = BIN_START + 20000) #create the new colum
+
+new_col_american <- new_col_american %>%
+  dplyr::relocate(BIN_END, .before=N_SNPS) #put the colum in the right order
+
+#option2 : Tajima_SNPs$BIN_END<-Tajima_SNPs$BIN_START+20000
+
+#Keep variants with only 1% lowest values =quantile 0.01
+
+#transform NA to 0
+tajima_american_input_bedtools <- new_col_american %>%
+  dplyr::mutate_at('TajimaD', ~tidyr::replace_na(.,0))
+
+#remove the 0
+tajima_american_input_bedtools<-tajima_american_input_bedtools[tajima_american_input_bedtools$TajimaD!=0,] #remove "0"
+
+quantile(tajima_american_input_bedtools$TajimaD, c(0.01, 0.99))
+
+quantile_tajima_american <- -2.127
+tajima_american_input_bedtools <- tajima_american_input_bedtools %>% filter(TajimaD <= quantile_tajima_american)
+
+tajima_american_input_bedtools <- tajima_american_input_bedtools[,-5]
+tajima_american_input_bedtools <- tajima_american_input_bedtools[,-4]
+
+options("scipen"=100, "digits"=4) #avoid scientific notation, keep the file format
+write.table(tajima_american_input_bedtools, file = "~/ATLANTIDES/bedtools/tajima_american_input_bedtools.bed",col.names = FALSE,row.names = FALSE,sep="\t",quote = FALSE)
