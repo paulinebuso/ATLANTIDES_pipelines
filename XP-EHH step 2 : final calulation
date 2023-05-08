@@ -1,0 +1,43 @@
+library(rehh)
+library(vcfR)
+library(tidyverse)
+library(readr)
+library(ggplot2)
+
+ch_wild <- read.table("/mnt/SCRATCH/cedi/phDSalmon/evolutionary_analysis/pauline_data/wild_ies_complete.txt", header = TRUE)
+ch_farmed <- read.table("/mnt/SCRATCH/cedi/phDSalmon/evolutionary_analysis/pauline_data/farmed_ies_complete.txt", header = TRUE)
+#subset sur 3 ch
+#ch_farmed<-ies_farmed_euro[ies_farmed_euro$CHR%in%c("ssa27", "ssa28", "ssa29"),]
+#ch_wild<-ies_wild_euro[ies_wild_euro$CHR%in%c("ssa27","ssa28","ssa29"),]
+
+ch_farmed$IES<-as.numeric(as.character(ch_farmed$IES))
+ch_farmed$INES<-as.numeric(as.character(ch_farmed$INES))
+
+ch_farmed_no_na<-ch_farmed[!is.na(ch_farmed$IES),]
+ch_farmed_no_na<-ch_farmed_no_na[!is.na(ch_farmed_no_na$INES),]
+#is.numeric(ch_farmed_no_na$IES)
+ch_farmed_no_na$IES<-as.numeric(as.character(ch_farmed_no_na$IES))
+ch_farmed_no_na$INES<-as.numeric(as.character(ch_farmed_no_na$INES))
+
+ch_wild$IES<-as.numeric(as.character(ch_wild$IES))
+ch_wild$INES<-as.numeric(as.character(ch_wild$INES))
+
+ch_wild_no_na<-ch_wild[!is.na(ch_wild$IES),]
+ch_wild_no_na<-ch_wild_no_na[!is.na(ch_wild_no_na$INES),]
+#is.numeric(ch_wild_no_na$IES)
+ch_wild_no_na$IES<-as.numeric(as.character(ch_wild_no_na$IES))
+ch_wild_no_na$INES<-as.numeric(as.character(ch_wild_no_na$INES))
+#remove the NAs
+xpehh_euro<- ies2xpehh(scan_pop1 =  ch_farmed_no_na,
+                       scan_pop2 =  ch_wild_no_na,
+                       popname1 = "Farmed_european",
+                       popname2 = "Wild_european",
+                       min_nhaplo = NA,
+                       standardize = TRUE,
+                       include_freq = FALSE,
+                       p.side = NA,
+                       p.adjust.method = "none",
+                       verbose = TRUE
+)
+
+write.table(xpehh_euro,file="/mnt/SCRATCH/cedi/phDSalmon/evolutionary_analysis/pauline_data/xpehh_table.txt",row.names = FALSE)
