@@ -5,7 +5,7 @@ library(tidyverse)
 library(dplyr)
 
 #Download the output from bash pipeline. It contains chromosome name, start position of the window, the number of SNPs per window, tajima's values.
-tajima_euro <- read.table("~/ATLANTIDES/Tajima/Europe/tajima_farmed_euro.Tajima.D") %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","N_SNPS","TajimaD"))
+tajima_euro <- read.table("~/ATLANTIDES/Tajima/tajima_farmed_euro.Tajima.D") %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","N_SNPS","TajimaD"))
 
 #Data preparation
 #install.packages("stringr")
@@ -26,56 +26,45 @@ tajima_euro<-tajima_euro[tajima_euro$TajimaD!=0,] #remove "0"
 which(is.na(tajima_euro), arr.ind=TRUE) #verify we have no NA
 
 #Q-Q plot 
-library(qqman)
-qq(tajima_euro$TajimaD, main = "Q-Q plot Tajima D values", cex = 0.8)
+#library(qqman)
+#qq(tajima_euro$TajimaD, main = "Q-Q plot Tajima D values", cex = 0.8)
 
 ###Manhattan plot with ggplot2 package 
 
-#Create a column with the accumulated position for the x-axis. "= bp_cum"
-data_cum <- tajima_euro %>% 
-  group_by(CHROM) %>% 
-  summarise(max_bp = max(BIN_START)) %>% 
-  mutate(bp_add = lag(cumsum(as.numeric(max_bp)), default = 0)) %>% 
-  select(CHROM, bp_add)
+#calcul of quantiles for significant lines
+quantval<-quantile(tajima_euro$TajimaD, c(.01, .99)) # calculate quantiles to have significance lines
+quartile1 <- quantval[1]
+quartile2 <- quantval[2]
 
-tajima_euro <- tajima_euro %>% 
-  inner_join(data_cum, by = "CHROM") %>% 
-  mutate(bp_cum = BIN_START + bp_add)
+#add space between chromosome + draw a beautiful axis with cumulative position
+#chromosome lenght 
+lengthvector<-c(174498729,95481959,105780080,90536438,92788608,96060288,68862998,28860523,161282225,125877811,111868677,101677876,
+                114417674,101980477,110670232,96486271,87489397,84084598,88107222,96847506,59819933,63823863,52460201,49354470,54385492,
+                55994222,45305548,41468476,43051128)
+chromadd<-c(0,cumsum(lengthvector+20000000)[1:28])
+chromname<-unique(tajima_euro$CHROM)
+chrommid<-chromadd+lengthvector/2
+listval<-cbind.data.frame(chromname,lengthvector,chromadd,chrommid)
+tajima_euro$newpos<-tajima_euro$BIN_START+listval[match(tajima_euro$CHROM,listval$chromname),3]
+##in this plot:
+## color chrom alternatively
+## label x axis with chrom name
+## remove legend using theme(legend.position="none")
+euro_plot <- ggplot(tajima_euro, aes(x = newpos, y =TajimaD,color = as.factor(CHROM))) + 
+  scale_color_manual(values = rep(c("#1c1616", "#8a8484"), length(unique(tajima_euro$CHROM))))+
+  geom_point(alpha = 0.90,size=1)+ 
+  theme_classic() +
+  geom_hline(yintercept = quartile1, color = "red", linetype = 1, linewidth = 0.6) +
+  geom_hline(yintercept = quartile2, color = "red", linetype = 1, linewidth = 0.6)+
+  scale_x_continuous(label =listval$chromname, breaks = listval$chrommid )+
+  theme(legend.position="none")+
+  labs(y="Tajima's D",x="Chromosome")+
+  ylim(c(-5,8))
 
-#Get the center of chromosomes
-axis_set <- tajima_euro %>% 
-  group_by(CHROM) %>% 
-  summarize(center = mean(bp_cum))
+euro_plot 
 
-ylim <- tajima_euro %>% 
-  filter(TajimaD == min(TajimaD)) %>% 
-  mutate(ylim = abs(floor(TajimaD)) + 2) %>% 
-  pull(ylim)
-
-#Calcul of the treshold
-quantile(tajima_euro$TajimaD, c(.01, .99)) # calculate quantiles to have significance lines 
-#Here we define anything larger than 1% of the distribution as “extraordinarily large D” (i.e., potential regions under non-neutral evolution). 
-#Other thresholds, for example, 0.1%, are also acceptable (nobody knows the “correct answer”)... 
-#but we need to do multiple analyses to find a region that is “possibly truly” adaptive. 
-#We define the top 1% as “candidate adaptive regions” for the time being, and will find overlap with candidate regions from other analyses later.
-
-#create an object with quantiles 0.01 and 0.99 values for the significant lines in the plot
-quartile1_tajima <- -1.489670
-quartile2_tajima <- 4.899038
-
-#Plot
-euro_plot <- ggplot(tajima_euro, aes(x = bp_cum, y =TajimaD,color = as.factor(CHROM))) +
-  geom_point(alpha = 0.75,size=0.80) + ylim(c(-4,6)) + 
-  geom_hline(yintercept = quartile1_tajima, color = "red", linetype = "dashed") +
-  geom_hline(yintercept = quartile2_tajima, color = "red", linetype = "dashed") +
-  scale_x_continuous(label =axis_set$CHROM, breaks = axis_set$center) +
-  scale_color_manual(values = rep(c("#3699ad", "#ab0c36"), unique(length(axis_set$CHROM)))) +
-  scale_size_continuous(range = c(0.4,2)) +
-  labs(y="Tajima's D p-value",x="Chromosome") + 
-  theme(legend.position="none") +
-  ggtitle("Tajima's D - Farmed European samples")
-
-euro_plot
+ggsave("farmed_euro_tajima_plot.png",width=12,height=5,dpi=300)
+dev.off()
 
 ###Marie's plot : allow us to see Tajima's distribution on each ch independantly
 #Full plot
@@ -161,7 +150,7 @@ library(ggplot2)
 library(tidyverse)
 library(dplyr)
 
-tajima_american <- read.table("~/ATLANTIDES/Tajima/American/tajima_farmed_american.Tajima.D") %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","N_SNPS","TajimaD"))
+tajima_american <- read.table("~/ATLANTIDES/Tajima/tajima_farmed_american.Tajima.D") %>% as_tibble %>% rename_all(~c("CHROM","BIN_START","N_SNPS","TajimaD"))
 
 ###Data preparation
 
@@ -182,50 +171,93 @@ qq(tajima_american$TajimaD, main = "Q-Q plot Tajima D values", cex = 0.8)
 
 ###Manhattan plot with ggplot2 package 
 
-data_cum <- tajima_american %>% 
-  group_by(CHROM) %>% 
-  summarise(max_bp = max(BIN_START)) %>% 
-  mutate(bp_add = lag(cumsum(as.numeric(max_bp)), default = 0)) %>% 
-  select(CHROM, bp_add)
+#calcul of quantiles for significant lines
+quantval<-quantile(tajima_american$TajimaD, c(.01, .99)) # calculate quantiles to have significance lines
+quartile3 <- quantval[1]
+quartile4 <- quantval[2]
 
-tajima_american <- tajima_american %>% 
-  inner_join(data_cum, by = "CHROM") %>% 
-  mutate(bp_cum = BIN_START + bp_add)
-
-axis_set <- tajima_american %>% 
-  group_by(CHROM) %>% 
-  summarize(center = mean(bp_cum))
-
-ylim <- tajima_american %>% 
-  filter(TajimaD == min(TajimaD)) %>% 
-  mutate(ylim = abs(floor(TajimaD)) + 2) %>% 
-  pull(ylim)
-
-quantile(tajima_american$TajimaD, c(.01, .99)) # calculate quantiles to have significance lines 
-#Here we define anything larger than 1% of the distribution as “extraordinarily large D” (i.e., potential regions under non-neutral evolution). 
-#Other thresholds, for example, 0.1%, are also acceptable (nobody knows the “correct answer”)... 
-#but we need to do multiple analyses to find a region that is “possibly truly” adaptive. 
-#We define the top 1% as “candidate adaptive regions” for the time being, and will find overlap with candidate regions from other analyses later.
-
-quartile1 <- -2.120700
-quartile2 <- 3.900521
-
-
-#Plot
-us_plot <- ggplot(tajima_american, aes(x = bp_cum, y =TajimaD,color = as.factor(CHROM))) +
-  geom_point(alpha = 0.75,size=0.80) + ylim(c(-4,6)) + 
-  geom_hline(yintercept = quartile1, color = "red", linetype = "dashed") +
-  geom_hline(yintercept = quartile2, color = "red", linetype = "dashed") +
-  scale_x_continuous(label =axis_set$CHROM, breaks = axis_set$center) +
-  scale_color_manual(values = rep(c("#3699ad", "#ab0c36"), unique(length(axis_set$CHROM)))) +
-  scale_size_continuous(range = c(0.4,2)) +
-  labs(y="Tajima's D p-value",x="Chromosome") + 
+#add space between chromosome + draw a beautiful axis with cumulative position
+#chromosome lenght 
+lengthvector<-c(174498729,95481959,105780080,90536438,92788608,96060288,68862998,28860523,161282225,125877811,111868677,101677876,
+                114417674,101980477,110670232,96486271,87489397,84084598,88107222,96847506,59819933,63823863,52460201,49354470,54385492,
+                55994222,45305548,41468476,43051128)
+chromadd<-c(0,cumsum(lengthvector+20000000)[1:28])
+chromname<-unique(tajima_american$CHROM)
+chrommid<-chromadd+lengthvector/2
+listval<-cbind.data.frame(chromname,lengthvector,chromadd,chrommid)
+tajima_american$newpos<-tajima_american$BIN_START+listval[match(tajima_american$CHROM,listval$chromname),3]
+##in this plot:
+## color chrom alternatively
+## label x axis with chrom name
+## remove legend using theme(legend.position="none")
+american_plot <- ggplot(tajima_american, aes(x = newpos, y =TajimaD,color = as.factor(CHROM))) + 
+  scale_color_manual(values = rep(c("#1c1616", "#8a8484"), length(unique(tajima_american$CHROM)))) +
+  geom_point(alpha = 0.90,size=1) + 
+  theme_classic() +
+  geom_hline(yintercept = quartile3, color = "red", linetype = 1, linewidth = 0.6) +
+  geom_hline(yintercept = quartile4, color = "red", linetype = 1, linewidth = 0.6) +
+  scale_x_continuous(label =listval$chromname, breaks = listval$chrommid )+
   theme(legend.position="none") +
-  ggtitle("Tajima's D - Farmed American samples")
+  labs(y="Tajima's D",x="Chromosome") +
+  ylim(c(-5,8))
 
-us_plot
+american_plot 
+
+ggsave("farmed_american_tajima_plot.png",width=12,height=5,dpi=300)
+dev.off()
+
 
 ####--------------Europe - American - comparison--------------####
 library(gridExtra)
 grid.arrange(euro_plot, us_plot)
 #here we plot the two previous plot showing Tajima's D distribution in each farmed population and compare the distribution
+
+###Other method of data preparation and plot 
+#Create a column with the accumulated position for the x-axis. "= bp_cum"
+data_cum <- tajima_euro %>% 
+  group_by(CHROM) %>% 
+  summarise(max_bp = max(BIN_START)) %>% 
+  mutate(bp_add = lag(cumsum(as.numeric(max_bp)), default = 0)) %>% 
+  select(CHROM, bp_add)
+
+tajima_euro <- tajima_euro %>% 
+  inner_join(data_cum, by = "CHROM") %>% 
+  mutate(bp_cum = BIN_START + bp_add)
+
+axis_set <- tajima_euro %>% 
+  group_by(CHROM) %>% 
+  summarize(center = mean(bp_cum))
+
+ylim <- tajima_euro %>% 
+  filter(TajimaD == min(TajimaD)) %>% 
+  mutate(ylim = abs(floor(TajimaD)) + 2) %>% 
+  pull(ylim)
+
+#Calcul of the treshold
+quantile(tajima_euro$TajimaD, c(.01, .99)) # calculate quantiles to have significance lines 
+#Here we define anything larger than 1% of the distribution as “extraordinarily large D” (i.e., potential regions under non-neutral evolution). 
+#Other thresholds, for example, 0.1%, are also acceptable (nobody knows the “correct answer”)... 
+#but we need to do multiple analyses to find a region that is “possibly truly” adaptive. 
+#We define the top 1% as “candidate adaptive regions” for the time being, and will find overlap with candidate regions from other analyses later.
+
+#create an object with quantiles 0.01 and 0.99 values for the significant lines in the plot
+quartile1_tajima <- -1.492066
+quartile2_tajima <- 4.555191
+
+
+#Plot
+euro_plot <- ggplot(tajima_euro, aes(x = bp_cum, y =TajimaD, color = as.factor(CHROM))) + 
+  theme(legend.position="none") +
+  geom_point(alpha = 0.90,size=1) + ylim(c(-3,6)) + 
+  geom_hline(yintercept = quartile1_tajima, color = "red", linetype = "dashed") +
+  geom_hline(yintercept = quartile2_tajima, color = "red", linetype = "dashed") +
+  scale_x_continuous(label = axis_set$CHROM, breaks = axis_set$center) +
+  scale_color_manual(values = rep(c("#1b3887", "#6180d4"), unique(length(axis_set$CHROM)))) +
+  labs(y="Tajima's D p-value",x="Chromosome") + 
+  theme_light()
+
+
+euro_plot
+
+ggsave("farmed_euro_tajima_plot.pdf",width=7,height=5,dpi=600)
+dev.off()
