@@ -1,0 +1,60 @@
+#!/bin/bash
+#SBATCH --ntasks=1         # 1 core(CPU)
+#SBATCH --nodes=1
+#SBATCH --job-name=bedtools
+#SBATCH --mem=8G
+#SBATCH --constraint=avx2
+
+
+module load BEDTools
+WD=/net/fs-2/scale/OrionStore/Scratch/pabu/bedtools/input2
+OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/bedtools
+ 
+####BEDTOOLS-WINDOW####
+
+###EUROPE
+
+#FST - TAJIMA
+bedtools intersect -a ${WD}/fst_input_bedtools.bed -b ${WD}/tajima_euro_input_bedtools.bed -wa -wb > ${OUT}/intersect_european_taj_fst.bed
+
+bedtools window -a ${OUT}/intersect_european_taj_fst.bed -b ${WD}/gene_input_bedtools.bed > ${OUT}/genes_europe_taj_fst.bed
+
+#FST - XPEHH
+
+bedtools intersect -a ${WD}/fst_input_bedtools.bed -b ${WD}/xp_ehh_euro.bed -wa -wb > ${OUT}/intersect_european_fst_xp.bed
+
+bedtools window -a ${OUT}/intersect_european_fst_xp.bed -b ${WD}/gene_input_bedtools.bed > ${OUT}/genes_europe_fst_xp.bed
+
+#TAJIMA - XPEHH
+
+bedtools intersect -a ${WD}/tajima_euro_input_bedtools.bed -b ${WD}/xp_ehh_euro.bed -wa -wb > ${OUT}/intersect_european_taj_xp.bed
+
+bedtools window -a ${OUT}/intersect_european_taj_xp.bed -b ${WD}/gene_input_bedtools.bed > ${OUT}/genes_europe_taj_xp.bed
+
+
+###AMERICAN
+
+#FST - TAJIMA
+bedtools intersect -a ${WD}/fst_american_input_bedtools.bed -b ${WD}/tajima_american_input_bedtools.bed -wa -wb > ${OUT}/intersect_american_taj_fst.bed
+
+bedtools window -a ${OUT}/intersect_american_taj_fst.bed -b ${WD}/gene_input_bedtools.bed > ${OUT}/genes_american_fst_taj.bed
+
+#FST - XP-EHH
+bedtools intersect -a ${WD}/fst_american_input_bedtools.bed -b ${WD}/xp_ehh_american.bed -wa -wb > ${OUT}/intersect_american_fst_xp.bed
+
+bedtools window -a ${OUT}/intersect_american_fst_xp.bed -b ${WD}/gene_input_bedtools.bed > ${OUT}/genes_american_fst_xp.bed
+
+#TAJIMA - XP-EHH
+bedtools intersect -a ${WD}/tajima_american_input_bedtools.bed -b ${WD}/xp_ehh_american.bed -wa -wb > ${OUT}/intersect_american_taj_xp.bed
+
+bedtools window -a ${OUT}/intersect_american_taj_xp.bed -b ${WD}/gene_input_bedtools.bed > ${OUT}/genes_american_taj_xp.bed
+
+
+###BOTH pops
+#using fst-xp-ehh and fst-tajima intersects
+
+bedtools intersect -a ${OUT}/intersect_european_fst_xp.bed -b ${OUT}/intersect_american_fst_xp.bed > ${OUT}/intersect_both_regions_fst_xp.bed
+bedtools window -a ${OUT}/intersect_both_regions_fst_xp.bed -b ${WD}/gene_input_bedtools.bed > ${OUT}/genes_both_regions_fst_xp.bed
+
+bedtools intersect -a ${OUT}/intersect_european_taj_fst.bed -b ${OUT}/intersect_american_taj_fst.bed > ${OUT}/intersect_both_regions_taj_fst.bed
+bedtools window -a ${OUT}/intersect_both_regions_taj_fst.bed -b ${WD}/gene_input_bedtools.bed > ${OUT}/genes_both_regions_taj_fst.bed
