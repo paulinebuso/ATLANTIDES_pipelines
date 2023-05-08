@@ -1,0 +1,35 @@
+#!/bin/bash
+
+#SBATCH --cpus-per-task=1             # 1 core(CPU)
+#SBATCH --job-name=rpau2   # sensible name for the job
+#SBATCH --mem=15G                 # Default memory per CPU is 3GB. Increase memory for this sofware because does not handle multiple cpus
+#SBATCH --output=rpau2.txt  #output
+
+
+WD=/mnt/SCRATCH/cedi/phDSalmon/evolutionary_analysis/pauline_data
+
+#COUNTFILE=($(ls $WD/table_ies/farmed_*.txt | wc -l))
+#for i in ${COUNTFILE[@]}
+    #do
+        #sed -i '1d' $i
+    #done
+
+#COUNTFILE2=($(ls $WD/table_ies/wild_*.txt | wc -l))
+#for i in ${COUNTFILE2[@]}
+    #do
+        #sed -i '1d' $i
+    #done
+
+#cat $WD/table_ies/farmed_*.txt > $WD/farmed_ies_complete2.txt
+
+
+#cat $WD/table_ies/wild_*.txt > $WD/wild_ies_complete2.txt
+
+
+echo "launching script"
+
+module load R/4.0.5 
+
+Rscript /mnt/users/cedi/xpehhpau.R
+
+echo "finishing script"
