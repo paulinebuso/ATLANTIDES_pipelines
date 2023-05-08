@@ -1,0 +1,79 @@
+library(tidyverse)
+library(maps)
+library(purrr)
+#install.packages("ggrepel")
+library(ggrepel)
+library(dplyr)
+
+setwd("~/ATLANTIDES/map")
+
+#norway
+data_wild_euro <- read.table("rivers_wild_WE.csv", header = FALSE, sep = ",") %>% as_tibble %>% rename_all(~c("river_id","nb_samples","origin","river_name","basin_name","basin_id","phylo","groupe_code","lat","long"))
+summary(data_wild_euro)
+world = map_data('world')
+
+ggplot() +
+  
+  geom_polygon(data = world, aes(x = long, y = lat, group = group),
+               
+               fill = "ivory", color = "gray", size = 0.3) +
+  
+  coord_quickmap(xlim = c(0,15), ylim = c(57, 65))+
+  
+  geom_point(data=data_wild_euro,aes(x = long, y = lat),col = "blue",size=2) +
+  
+  geom_text_repel(data=data_wild_euro,aes(label = river_id,x = long, y = lat),max.overlaps = 100,size = 3,min.segment.length = 0) +
+  
+  theme(panel.grid.major = element_blank(),
+        
+        panel.grid.minor = element_blank(),
+        
+        panel.background = element_rect(fill = "lightblue"),
+        
+        axis.line = element_line(colour = "black"),
+        
+        axis.text = element_text(size = 12),
+        
+        axis.title = element_text(size = 12)) +
+  
+  labs(y="Latitude",x="Longitude")
+
+ggsave("map-euro_zoom.png",width=6,height=5,dpi=300)
+dev.off()
+
+#american
+data_american <- read.table("rivers_american.csv", header = FALSE, sep = ",") %>% as_tibble %>% rename_all(~c("river_id","nb_samples","origin","river_name","basin_name","basin_id","phylo","groupe_code","lat","long", "Populations"))
+  
+summary(data_american)
+world = map_data('world')
+
+ggplot() +
+  
+  geom_polygon(data = world, aes(x = long, y = lat, group = group),
+               
+               fill = "ivory", color = "gray", size = 0.3) +
+  
+  coord_quickmap(xlim = c(-80,-50), ylim = c(40, 55))+
+  
+  geom_point(data=data_american,aes(x = long, y = lat, colour = Populations), size=2) +
+  scale_color_manual(values = c("red","blue")) +
+  
+  geom_text_repel(data=data_american, aes(label = basin_name, x = long, y = lat),max.overlaps = 100, size = 3, min.segment.length = 0) +
+  
+  theme(panel.grid.major = element_blank(),
+        
+        panel.grid.minor = element_blank(),
+        
+        panel.background = element_rect(fill = "lightblue"),
+        
+        axis.line = element_line(colour = "black"),
+        
+        axis.text = element_text(size = 12),
+        
+        axis.title = element_text(size = 12)) +
+  
+        labs(y ="Latitude", x ="Longitude") 
+
+ggsave("map-american_zoom.png",width=6,height=5,dpi=300)
+dev.off()
+
