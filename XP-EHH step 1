@@ -1,0 +1,50 @@
+#!/bin/bash
+
+#SBATCH --cpus-per-task=1             # 1 core(CPU)
+#SBATCH --job-name=rpau   # sensible name for the job
+#SBATCH --mem=5G                 # Default memory per CPU is 3GB. Increase memory for this sofware because does not handle multiple cpus
+#SBATCH --output=rpau.txt  #output
+
+WD=/mnt/SCRATCH/cedi/phDSalmon/evolutionary_analysis/pauline_data #shortcut for the working directory
+
+echo "Job number $SLURM_JOB_ID, starting at"
+date
+
+echo "Use sacct --format=jobid,jobname,partition,alloccpus,elapsed,state,MaxVMSize,ReqMem,node -j $SLURM_JOB_ID to have more information on the job."
+
+
+
+##checking chromosome launched
+if (($SLURM_ARRAY_TASK_ID<10))
+then 
+	CHROM="ssa0${SLURM_ARRAY_TASK_ID}"
+else
+	CHROM="ssa${SLURM_ARRAY_TASK_ID}"
+fi
+echo "Doing PCA on chromosome ${CHROM}."
+
+module load R/4.0.5 
+
+Rscript /mnt/users/cedi/crosspop2.R $CHROM
+
+ALLCHROM=29
+COUNTFILE=$(ls $WD/table_ies/farmed_*.txt | wc -l) ##count the number of file to see if all sample are done
+if [ "$COUNTFILE" == "$ALLCHROM" ]
+then
+    cat $WD/table_ies/farmed_*.txt > $WD/farmed_ies_complete.txt
+else
+    exit
+fi
+
+
+COUNTFILE2=$(ls $WD/table_ies/wild_*.txt | wc -l) ##count the number of file to see if all sample are done
+if [ "$COUNTFILE2" == "$ALLCHROM" ]
+then
+    cat $WD/table_ies/wild_*.txt > $WD/wild_ies_complete.txt
+else
+    exit
+fi
+
+echo "Job number $SLURM_JOB_ID, ending at"
+date
+
