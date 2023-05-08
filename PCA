@@ -6,42 +6,35 @@
 #SBATCH --output=pca.%A_%a.txt 
 #SBATCH --constraint=avx2
 
-#Load the required tools
 module load VCFtools
 module load BCFtools
 module load tabixpp/1.1.0-GCC-10.2.0
 module load SAMtools
-module load PLINK/1.9b_6.17-x86_64 #plink 1.9 does not keep the phased data. plink 2.0 concerve phased data. here we're usiing unphased data do 1.9 is enough.
+module load PLINK/1.9b_6.17-x86_64
 
-#Input directory
-VCF1=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_Europe_filtered.recode.vcf.gz
-VCF2=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_Europe_filtered.recode.vcf.gz
-VCF3=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Farmed_American_filtered.recode.vcf.gz
-VCF4=/mnt/SCRATCH/cedi/phDSalmon/sv_detection/filtervcf/Only_SNP_Wild_American_filtered.recode.vcf.gz
+#Notes :
+#Input = a merged file containing the 4 populations and already filtered for depth, low quality variants and missingness
+#For structure analysis : need to filter MAF, HW and Linkage desequilibrum.
 
-#Output directory
-OUT1=/net/fs-2/scale/OrionStore/Scratch/pabu/Pass_filtered_datasets
-OUT2=/net/fs-2/scale/OrionStore/Scratch/pabu/PCA_admixture/PCA/celian_files
+#Directories for input and output 
+VCF=/mnt/SCRATCH/pabu/Soft_filtering/4pops_merged_filtered_depth_lqual_miss.recode.vcf.gz
+OUT=/net/fs-2/scale/OrionStore/Scratch/pabu/PCA_admixture/PCA
 
-#Create a vcf file with the 4 populations together 
-bcftools merge $VCF1 $VCF2 $VCF3 $VCF4 -0 --missing-to-ref | bgzip > ${OUT1}/4pops_celian_merged.vcf.gz
-tabix -p vcf ${OUT1}/4pops_celian_merged.vcf.gz #index
+#create variants ids for LD pruning :
 
-#add variantis IDs
-bcftools annotate --set-id '%CHROM\_%POS\_%REF\_%ALT' -c ID ${OUT1}/4pops_celian_merged.vcf.gz | bgzip > ${{OUT1}/4pops_celian_merged_ids.vcf.gz
-tabix -p vcf ${OUT1}/4pops_celian_merged_ids.vcf.gz
+bcftools annotate --set-id '%CHROM\_%POS\_%REF\_%ALT' -c ID $VCF | bgzip > ${OUT}/PCA_input_ids.vcf.gz
+tabix -p vcf ${OUT}/PCA_input_ids.vcf.gz
 
-#Full input
-FULL_VCF=/net/fs-2/scale/OrionStore/Scratch/pabu/Pass_filtered_datasets/4pops_celian_merged_ids.vcf.gz
+#LD prunning + MAF cutting off
 
-#Structure analysis need Linkage Desequilibrum prunning + MAF cutting off + filtering of missing genotypes : to keep only neutral markers.
-plink --vcf $FULL_VCF --geno 0.1 --maf 0.05 --indep-pairwise 50 10 0.1 --out ${OUT2}/PCA_filtering --recode vcf bgz --double-id --aec --threads 8 --dog 
-tabix -p vcf ${OUT2}/PCA_filtering.vcf.gz #index 
+plink --vcf ${OUT}/PCA_input_ids.vcf.gz --hwe 0.001 --maf 0.05 --indep-pairwise 50 10 0.5 --out ${OUT}/PCA_filtering --recode vcf bgz --double-id --aec --threads 8 --dog
+tabix -p vcf ${OUT}/PCA_filtering.vcf.gz
+plink --vcf ${OUT}/PCA_filtering.vcf.gz --exclude ${OUT}/PCA_filtering.prune.out --out ${OUT}/PCA_input_final --recode vcf bgz --aec --double-id --threads 8 --dog
+tabix -p vcf ${OUT}/PCA_input_final.vcf.gz
 
-#the command above filter automaticaly MAF and missing genotypes on the PCA_filtering output. But for LD prunning, it creates 2 outputs with a list of the variants that are "good" and the list of variant in linkage desequilibrum. We need to exclude these "bad" variants with the following command : 
-plink --vcf ${OUT2}/PCA_filtering.vcf.gz --exclude ${OUT}/PCA_filtering.prune.out --out ${OUT}/4_pops_merged_filtered_PCA --recode vcf bgz --aec --double-id --threads 8 --dog 
-tabix -p vcf ${OUT2}/4_pops_merged_filtered_PCA.vcf.gz #index again
+#Run the PCA
+plink --vcf ${OUT}/PCA_input_final.vcf.gz --pca 10 --out ${OUT}/pca_4pops --aec --threads 8 --dog --double-id
 
-#Run the PCA with the final "clean" file
-plink --vcf ${OUT2}/4_pops_merged_filtered_PCA.vcf.gz --pca 10 --out ${OUT2}/pca_4pops --aec --threads 8 --dog --double-id
+#extract the right order of samples for the plot on R
+bcftools query -l ${OUT}/PCA_input_final.vcf.gz > ${OUT}/samples_pca_list.txt
 
